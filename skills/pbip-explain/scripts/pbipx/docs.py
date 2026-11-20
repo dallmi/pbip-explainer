@@ -605,18 +605,18 @@ def highlight_dax(expr: str, ctx: Ctx, measure_names: set) -> str:
 
 
 CSS = """
-:root{--primary:#E60000;--bordeaux:#8A000A;--bronze:#B98E2C;--g1:#CCCABC;--g2:#B8B3A2;--g3:#8E8D83;--g4:#7A7870;--g5:#5A5D5C;--g6:#404040;
---bg:#FFFFFF;--surface:#ECEBE4;--surface2:#F5F0E1;--row:#F8F7F2;--page:#F7F7F5;--ok:#6F7A1A;--warn:#E4A911;--bad:#BD000C;--info:#0C7EC6;
+:root{--primary:#E60000;--bordeaux:#B00000;--bronze:#B98E2C;--g1:#D9D6CC;--g2:#D9D6CC;--g3:#9A978E;--g4:#66645C;--g5:#3A3A3A;--g6:#111111;
+--bg:#FFFFFF;--surface:#F2F0EA;--surface2:#F7F6F2;--row:#F7F6F2;--page:#F7F6F2;--ok:#2E7D32;--warn:#C9A227;--bad:#B00000;--info:#66645C;
 --font:"Frutiger 45 Light",Frutiger,"Helvetica Neue",Helvetica,Arial,"Segoe UI",system-ui,sans-serif;--mono:Consolas,"SF Mono",Menlo,monospace}
 *{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth;scroll-padding-top:16px}
-body{font-family:var(--font);background:var(--bg);color:var(--g6);line-height:1.5;font-size:14px}
+body{font-family:var(--font);background:var(--bg);color:var(--g6);line-height:1.55;font-size:14px}
 a{color:var(--g6);text-decoration:underline;text-decoration-color:var(--g2);text-underline-offset:2px}
 a:hover{color:var(--primary)}
 .layout{display:grid;grid-template-columns:270px 1fr;min-height:100vh}
 nav{position:sticky;top:0;height:100vh;overflow:auto;border-right:1px solid var(--surface);padding:20px 16px;background:var(--bg)}
-nav .brand{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--g4);margin-bottom:4px}
-nav .rname{font-size:16px;font-weight:600;color:#000;margin-bottom:14px;word-break:break-word}
+nav .brand{font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--primary);margin-bottom:4px}
+nav .rname{font-size:17px;font-weight:700;color:#000;margin-bottom:14px;word-break:break-word;line-height:1.25}
 nav input{width:100%;padding:7px 9px;border:1px solid var(--g2);border-radius:2px;font:inherit;margin-bottom:14px}
 nav input:focus{outline:2px solid var(--g6);outline-offset:0}
 nav ul{list-style:none}
@@ -627,19 +627,20 @@ nav li.sub a{padding-left:20px;font-size:12.5px}
 #results li a{display:block;padding:4px 8px;font-size:12.5px;text-decoration:none;border-bottom:1px solid var(--row)}
 #results .kind{color:var(--g4);font-size:11px;margin-left:6px}
 main{padding:32px 48px 80px;max-width:1280px;min-width:0}
-header.doc h1{font-size:28px;font-weight:400;color:#000;line-height:1.2}
+header.doc .kicker{font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--primary);margin-bottom:8px}
+header.doc h1{font-size:38px;font-weight:700;color:#000;line-height:1.12;letter-spacing:-.01em}
 header.doc .meta{color:var(--g4);font-size:12.5px;margin:6px 0 20px}
-h2{font-size:22px;font-weight:400;color:#000;margin:44px 0 12px;padding-top:14px;border-top:1px solid #000}
-h3{font-size:17px;font-weight:600;color:#000;margin:26px 0 8px}
+h2{font-size:26px;font-weight:700;color:#000;margin:48px 0 12px;padding-top:18px;border-top:1px solid var(--g1);letter-spacing:-.005em}
+h3{font-size:17px;font-weight:700;color:#000;margin:26px 0 8px}
 h4{font-size:14.5px;font-weight:600;color:#000;margin:18px 0 6px}
 p{margin:6px 0}
 .lead{font-size:15px;max-width:820px}
 .tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));border-top:1px solid var(--surface);border-left:1px solid var(--surface);margin:12px 0 4px}
 .tile{background:var(--bg);padding:12px 14px;border-right:1px solid var(--surface);border-bottom:1px solid var(--surface)}
-.tile .v{font-size:26px;color:#000;line-height:1.1}
+.tile .v{font-size:26px;font-weight:700;color:#000;line-height:1.1}
 .tile .l{font-size:12px;color:var(--g4)}
 table{border-collapse:collapse;width:100%;margin:8px 0 14px;font-size:13px}
-th{text-align:left;font-weight:600;font-size:12px;color:#000;border-bottom:1px solid #000;padding:6px 8px;vertical-align:bottom}
+th{text-align:left;font-weight:700;font-size:12px;color:#000;border-bottom:1px solid var(--g6);padding:6px 8px;vertical-align:bottom}
 td{padding:5px 8px;border-bottom:1px solid var(--surface);vertical-align:top}
 tbody tr:nth-child(even){background:var(--row)}
 .tw{overflow-x:auto}
@@ -654,14 +655,15 @@ pre .f{color:#2E476B;font-weight:600}pre .r{color:#295B40}pre a.m{color:#295B40;
 .badge.hid{color:var(--g4)}
 .badge.unused{border-color:var(--warn);color:#7a5a00}
 .badge.role{background:var(--surface);border-color:var(--surface);color:var(--g6)}
-.card{border:1px solid var(--surface);padding:14px 18px;margin:14px 0}
+.card{border:1px solid var(--g1);padding:16px 20px;margin:14px 0}
 .card h3{margin-top:0}
 .muted{color:var(--g4)}
 .small{font-size:12.5px}
 .chips span{display:inline-block;border:1px solid var(--surface);padding:1px 7px;margin:2px 4px 2px 0;font-size:12px}
 .find{border-left:3px solid var(--g3);padding:8px 12px;margin:8px 0;background:var(--bg)}
 .find.error{border-left-color:var(--bad)}.find.warning{border-left-color:var(--warn)}.find.info{border-left-color:var(--info)}
-.find .sev{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--g4)}
+.find .sev{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--g4)}
+.find.error .sev{color:var(--bad)}.find.warning .sev{color:#8C5B00}
 .find ul{margin:4px 0 0 18px;font-size:12.5px;color:var(--g5)}
 .diagram{border:1px solid var(--surface);position:relative;overflow:hidden;height:620px;background:var(--bg);cursor:grab}
 .diagram svg{width:100%;height:100%}
@@ -761,6 +763,7 @@ def render_html(ctx: Ctx) -> str:
 
     # header --------------------------------------------------------------------
     h('<header class="doc">')
+    h('<div class="kicker">Power BI documentation · report &amp; semantic model</div>')
     h(f"<h1>{escape(ctx.title)}</h1>")
     h(f'<div class="meta">Power BI report &amp; semantic model documentation · generated {escape(ctx.pack["generatedAt"])} '
       f'from <code>{escape(ctx.pack["source"]["name"])}</code> · {escape(ctx.pack["generator"])}</div>')
@@ -887,8 +890,8 @@ def render_html(ctx: Ctx) -> str:
           'Hover a line for the join key.</p>')
         h(f'<div class="diagram"><div class="dtools"><button data-z="in" title="Zoom in">+</button>'
           f'<button data-z="out" title="Zoom out">−</button><button class="wide" data-z="fit">Reset</button></div>{svg}</div>')
-        h('<p class="legend">Header:<i style="background:#404040"></i>fact<i style="background:#ECEBE4"></i>dimension'
-          '<i style="background:#B98E2C"></i>date<i style="background:#7A7870"></i>bridge'
+        h('<p class="legend">Header:<i style="background:#111111"></i>fact<i style="background:#F2F0EA"></i>dimension'
+          '<i style="background:#B98E2C"></i>date<i style="background:#66645C"></i>bridge'
           '<i style="border-style:dashed"></i>parameter / helper · line: <b>1</b> one side, <b>*</b> many side, '
           'arrow = filter direction, dashed = inactive, dark red = both directions.</p><p class="dinfo small"></p>')
         h('<h4>Tables</h4><div class="tw"><table><thead><tr><th>Table</th><th>Role</th><th>Storage</th><th>Source</th>'

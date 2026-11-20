@@ -18,20 +18,20 @@ MAX_KEYS = 7
 
 STYLE = """
 .erd text{font-family:"Frutiger 45 Light",Frutiger,"Helvetica Neue",Arial,"Segoe UI",sans-serif;}
-.erd .box{fill:#fff;stroke:#8E8D83;stroke-width:1}
-.erd .head{fill:#ECEBE4}
-.erd .n-fact .head{fill:#404040}.erd .n-fact .title{fill:#fff}
+.erd .box{fill:#fff;stroke:#9A978E;stroke-width:1}
+.erd .head{fill:#F2F0EA}
+.erd .n-fact .head{fill:#111111}.erd .n-fact .title{fill:#fff}
 .erd .n-date .head{fill:#B98E2C}.erd .n-date .title{fill:#fff}
-.erd .n-bridge .head{fill:#7A7870}.erd .n-bridge .title{fill:#fff}
+.erd .n-bridge .head{fill:#66645C}.erd .n-bridge .title{fill:#fff}
 .erd .n-param .box,.erd .n-disc .box{stroke-dasharray:4 3}
-.erd .title{font-size:12.5px;font-weight:600;fill:#000}
+.erd .title{font-size:12.5px;font-weight:700;fill:#000}
 .erd .key{font-size:11px;fill:#404040}
 .erd .foot{font-size:10px;fill:#7A7870}
 .erd .edge line{stroke:#5A5D5C;stroke-width:1.3}
 .erd .edge.inactive line{stroke-dasharray:5 4;stroke:#8E8D83}
-.erd .edge.both line{stroke:#8A000A}
+.erd .edge.both line{stroke:#B00000}
 .erd .card{font-size:11px;fill:#000;font-weight:600}
-.erd .arrow{fill:#5A5D5C}.erd .edge.both .arrow{fill:#8A000A}
+.erd .arrow{fill:#5A5D5C}.erd .edge.both .arrow{fill:#B00000}
 .erd .hit{stroke:transparent;stroke-width:10}
 .erd .lane{font-size:11px;fill:#7A7870;letter-spacing:.04em}
 .erd .node{cursor:pointer}
