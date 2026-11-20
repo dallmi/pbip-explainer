@@ -1,0 +1,88 @@
+# pbip-explainer
+
+Hand over a Power BI project as a zip, get back everything needed to understand it:
+
+- a **knowledge pack** – structured facts an agent can answer any question from (`model.json`, CSVs, `agent-brief.md`)
+- **documentation** for business users and the tech team – one offline HTML file and the same content as Markdown, with an interactive data model diagram, data glossary, page-by-page description, DAX catalog with dependencies, lineage from source to visual, Power Query sources and a model health check
+- a **query CLI** for the questions that come up when nobody remembers how the semantic layer works: how is this measure calculated, how are these tables joined, what breaks if I change this column, what is unused
+
+## Why
+
+Semantic models grow over years. Measures pile up, relationships get bi-directional "just to make it work", and the people who built them move on. PBIP stores the model (TMDL) and the report (PBIR) as text, so all of it can be read without Power BI – this tool does the reading and turns it into something people and agents can use.
+
+## Quick start
+
+1. In Power BI Desktop: *File › Save as › Power BI project (.pbip)*. Zip the folder that holds `X.pbip`, `X.SemanticModel/` and `X.Report/`.
+2. Run:
+
+```bash
+python3 skills/pbip-explain/scripts/pbip_explain.py run MyReport.zip --out work/my-report
+```
+
+3. Open `work/my-report/docs/<Name>-documentation.html`.
+
+No installs: Python 3.9+ standard library only. Works on Windows, macOS and Linux.
+
+## With an agent
+
+`skills/pbip-explain/SKILL.md` is the agent's playbook (Claude Code picks it up via `.claude/skills/`). The agent
+
+1. runs the extraction,
+2. drafts business descriptions into `enrichment.json` from the extracted facts (shown as *AI-drafted · review* in the docs; model descriptions always win),
+3. rebuilds the docs,
+4. answers questions with the query commands.
+
+Other agents can use the knowledge pack as knowledge files; see *Copilot Studio* below.
+
+## Copilot Studio
+
+Two ways to run it there, both built from this repository with
+
+```bash
+python3 scripts/build_copilot_skills.py
+```
+
+which writes `dist/copilot/`: `pbip-explain.zip`, `agent-instructions.txt`, `agent-instructions-qa.txt` and `build-report.txt` (says what changed since the last build, so only that needs uploading again).
+
+- **A – Q&A agent, no code execution.** Paste `agent-instructions-qa.txt` into the agent's instructions. Per report, extract locally (`pbip_explain.py run <zip> --out work/<name>`), then `python3 scripts/build_copilot_skills.py --knowledge work/<name>` writes `work/<name>/copilot-knowledge/`: the agent brief, the CSVs and the documentation Markdown, each named `<pack>-<file>` so several reports can live in one agent. Upload them under *Knowledge › Add knowledge › Upload files*. `--with-model-json` adds `model.json`.
+- **B – agent with code execution.** Upload `pbip-explain.zip` under *Build › Skills › Add skill › Upload a skill* and paste `agent-instructions.txt` into the instructions. Users attach the PBIP zip; the agent runs the tool in its sandbox, answers and hands back the docs and a knowledge zip that feeds mode A.
+
+Copilot-specific text lives only in `copilot/` (`agent-instructions*.md`, `notes/` inserted at the top of `SKILL.md` in the package), never in `skills/`. The build refuses to write anything if a Microsoft host limit is violated; the limits are the same as in the sister project html2pbi.
+
+## Commands
+
+```
+pbip_explain.py run     <zip|folder|.pbip> --out <dir>   extract + docs
+pbip_explain.py extract <zip|folder|.pbip> --out <dir>   knowledge pack only
+pbip_explain.py docs    <dir> [--enrichment file]        rebuild docs (after editing enrichment.json)
+pbip_explain.py query   <dir> summary | find <text> | measure <M> | table <T> | column <T[C]> | page <P>
+                              | path <A> <B> | impact <M|T[C]|T> | unused | findings
+```
+
+## Output
+
+```
+work/<name>/
+  00-input/                 unpacked zip (data caches *.abf skipped)
+  knowledge/
+    model.json              all facts (schema: skills/pbip-explain/references/knowledge-schema.md)
+    agent-brief.md          compact overview for an LLM
+    tables.csv columns.csv measures.csv relationships.csv visuals.csv sources.csv
+  enrichment.json           business descriptions (template; filled by an agent or by hand)
+  docs/
+    <Name>-documentation.html   self-contained, offline, searchable
+    <Name>-documentation.md     for wikis / Git (Mermaid ER diagram)
+    model-diagram.svg           for slides and Confluence
+```
+
+## What it reads
+
+TMDL and model.bim semantic models; PBIR and legacy report.json reports. Details and limits: `skills/pbip-explain/references/limitations.md`.
+
+## Development
+
+- Code: `skills/pbip-explain/scripts/pbipx/` (`tmdl`, `model`, `report`, `dax`, `mquery`, `analysis`, `pack`, `docs`, `diagram`, `query`)
+- Synthetic examples: `python3 examples/generate_examples.py` (TMDL + PBIR with every feature the analysis checks; legacy model.bim + report.json)
+- Tests: `python3 tests/test_pbipx.py` – must be green before every commit
+- Copilot build: `python3 tests/test_build_copilot_skills.py` – builds the packages and checks them against the host limits; must be green after every change to `skills/` or `copilot/`
+- `work/` is git-ignored. Real projects are analysed there and never committed.

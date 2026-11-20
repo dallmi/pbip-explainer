@@ -1,0 +1,16 @@
+/// Engagement analytics for internal communication campaigns.
+model Model
+	culture: en-US
+	defaultPowerBIDataSourceVersion: powerBI_V3
+	discourageImplicitMeasures
+	sourceQueryCulture: en-US
+
+annotation PBI_ProTooling = ["DevMode"]
+
+ref table Engagement
+ref table Campaign
+ref table Division
+ref table Date
+ref table _Measures
+ref table 'Time Intelligence'
+ref table 'Metric Selector'

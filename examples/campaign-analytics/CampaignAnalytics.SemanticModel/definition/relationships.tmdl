@@ -1,0 +1,17 @@
+relationship a1000000-0000-0000-0000-000000000001
+	fromColumn: Engagement.Date
+	toColumn: Date.Date
+
+relationship a1000000-0000-0000-0000-000000000002
+	isActive: false
+	fromColumn: Engagement.'Send Date'
+	toColumn: Date.Date
+
+relationship a1000000-0000-0000-0000-000000000003
+	fromColumn: Engagement.'Campaign Key'
+	toColumn: Campaign.'Campaign Key'
+
+relationship a1000000-0000-0000-0000-000000000004
+	crossFilteringBehavior: bothDirections
+	fromColumn: Engagement.'Division Key'
+	toColumn: Division.'Division Key'

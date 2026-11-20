@@ -1,0 +1,140 @@
+{
+  "compatibilityLevel": 1550,
+  "model": {
+    "culture": "en-US",
+    "defaultPowerBIDataSourceVersion": "powerBI_V3",
+    "tables": [
+      {
+        "name": "Sales",
+        "description": "Order lines.",
+        "columns": [
+          {
+            "name": "OrderDate",
+            "dataType": "dateTime",
+            "sourceColumn": "OrderDate"
+          },
+          {
+            "name": "ProductID",
+            "dataType": "int64",
+            "sourceColumn": "ProductID",
+            "summarizeBy": "sum"
+          },
+          {
+            "name": "Amount",
+            "dataType": "decimal",
+            "sourceColumn": "Amount",
+            "formatString": "#,0.00"
+          },
+          {
+            "name": "Margin",
+            "dataType": "decimal",
+            "type": "calculated",
+            "expression": [
+              "Sales[Amount] * 0.3"
+            ]
+          }
+        ],
+        "measures": [
+          {
+            "name": "Revenue",
+            "expression": "SUM(Sales[Amount])",
+            "formatString": "#,0"
+          },
+          {
+            "name": "Margin %",
+            "expression": [
+              "DIVIDE(",
+              "    SUM(Sales[Margin]),",
+              "    [Revenue]",
+              ")"
+            ],
+            "description": "Margin as share of revenue."
+          },
+          {
+            "name": "Unused Measure",
+            "expression": "COUNTROWS(Sales)"
+          }
+        ],
+        "partitions": [
+          {
+            "name": "Sales",
+            "mode": "import",
+            "source": {
+              "type": "m",
+              "expression": [
+                "let",
+                "    Source = Csv.Document(File.Contents(\"C:\\data\\sales.csv\"),[Delimiter=\",\"]),",
+                "    Promoted = Table.PromoteHeaders(Source)",
+                "in",
+                "    Promoted"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "name": "Product",
+        "columns": [
+          {
+            "name": "ProductID",
+            "dataType": "int64",
+            "sourceColumn": "ProductID"
+          },
+          {
+            "name": "Category",
+            "dataType": "string",
+            "sourceColumn": "Category"
+          }
+        ],
+        "partitions": [
+          {
+            "name": "Product",
+            "mode": "import",
+            "source": {
+              "type": "m",
+              "expression": "let\n    Source = Excel.Workbook(File.Contents(\"C:\\data\\products.xlsx\"), null, true),\n    Sheet = Source{[Item=\"Products\",Kind=\"Sheet\"]}[Data]\nin\n    Sheet"
+            }
+          }
+        ]
+      },
+      {
+        "name": "LocalDateTable_1234",
+        "isHidden": true,
+        "showAsVariationsOnly": true,
+        "columns": [
+          {
+            "name": "Date",
+            "dataType": "dateTime",
+            "sourceColumn": "Date"
+          }
+        ],
+        "partitions": [
+          {
+            "name": "p",
+            "source": {
+              "type": "calculated",
+              "expression": "Calendar(Date(2020,1,1), Date(2020,12,31))"
+            }
+          }
+        ]
+      }
+    ],
+    "relationships": [
+      {
+        "name": "r1",
+        "fromTable": "Sales",
+        "fromColumn": "ProductID",
+        "toTable": "Product",
+        "toColumn": "ProductID"
+      },
+      {
+        "name": "r2",
+        "fromTable": "Sales",
+        "fromColumn": "OrderDate",
+        "toTable": "LocalDateTable_1234",
+        "toColumn": "Date",
+        "joinOnDateBehavior": "datePartOnly"
+      }
+    ]
+  }
+}

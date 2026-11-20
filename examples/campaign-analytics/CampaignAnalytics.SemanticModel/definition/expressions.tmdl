@@ -1,0 +1,15 @@
+expression Host = "adb-0000000000000000.0.example.net" meta [IsParameterQuery=true, Type="Text", IsParameterQueryRequired=true]
+	lineageTag: 0b1f0000-0000-0000-0000-000000000001
+	queryGroup: Parameters
+
+expression HttpPath = "/sql/1.0/warehouses/example" meta [IsParameterQuery=true, Type="Text", IsParameterQueryRequired=true]
+	lineageTag: 0b1f0000-0000-0000-0000-000000000002
+	queryGroup: Parameters
+
+/// Maps division keys to the reporting region.
+expression 'Region Map' =
+		let
+			Source = Table.FromRows({{"GWM", "Global"}, {"IB", "Americas"}, {"PCB", "Switzerland"}}, {"Division Key", "Region"})
+		in
+			Source
+	lineageTag: 0b1f0000-0000-0000-0000-000000000003

@@ -1,0 +1,8 @@
+{
+  "name": "qa",
+  "displayName": "QA",
+  "displayOption": "FitToPage",
+  "width": 1280,
+  "height": 720,
+  "visibility": "HiddenInViewMode"
+}

@@ -1,0 +1,13 @@
+{
+  "name": "logo",
+  "position": {
+    "x": 1180,
+    "y": 10,
+    "z": 0,
+    "width": 80,
+    "height": 50
+  },
+  "visual": {
+    "visualType": "image"
+  }
+}

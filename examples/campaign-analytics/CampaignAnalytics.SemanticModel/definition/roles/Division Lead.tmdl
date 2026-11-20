@@ -1,0 +1,5 @@
+/// Division leads see only their own division.
+role 'Division Lead'
+	modelPermission: read
+
+	tablePermission Division = Division[Division] = "Investment Bank"

@@ -1,0 +1,50 @@
+/// Communication campaigns as planned in the campaign tool.
+table Campaign
+	lineageTag: c0000000-0000-0000-0000-000000000001
+
+	column 'Campaign Key'
+		dataType: int64
+		isHidden
+		isKey
+		formatString: 0
+		lineageTag: c0000000-0000-0000-0000-000000000002
+		summarizeBy: none
+		sourceColumn: campaign_key
+
+	column 'Campaign Name'
+		dataType: string
+		lineageTag: c0000000-0000-0000-0000-000000000003
+		summarizeBy: none
+		sourceColumn: campaign_name
+
+	/// Distribution channel: Email, Intranet or App.
+	column Channel
+		dataType: string
+		lineageTag: c0000000-0000-0000-0000-000000000004
+		summarizeBy: none
+		sourceColumn: channel
+		sortByColumn: 'Channel Sort'
+
+	column 'Channel Sort'
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: c0000000-0000-0000-0000-000000000005
+		summarizeBy: sum
+		sourceColumn: channel_sort
+
+	column 'Launch Year'
+		dataType: int64
+		formatString: 0
+		lineageTag: c0000000-0000-0000-0000-000000000006
+		summarizeBy: sum
+		sourceColumn: launch_year
+
+	partition Campaign = m
+		mode: import
+		source =
+				let
+					Source = Sql.Database("sql-campaigns.example.internal", "campaigns"),
+					Query = Value.NativeQuery(Source, "SELECT campaign_key, campaign_name, channel, channel_sort, launch_year FROM dbo.campaign WHERE is_test = 0")
+				in
+					Query

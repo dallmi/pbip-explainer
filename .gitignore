@@ -1,0 +1,9 @@
+work/
+__pycache__/
+*.pyc
+.local/
+pictures/
+.DS_Store
+
+# Build output (scripts/build_copilot_skills.py), rebuilt from skills/ and copilot/ at any time
+dist/

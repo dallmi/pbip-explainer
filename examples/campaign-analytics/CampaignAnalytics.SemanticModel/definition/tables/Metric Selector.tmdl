@@ -1,0 +1,39 @@
+table 'Metric Selector'
+	lineageTag: 3e000000-0000-0000-0000-000000000001
+
+	column Metric
+		dataType: string
+		lineageTag: 3e000000-0000-0000-0000-000000000002
+		summarizeBy: none
+		sourceColumn: [Value1]
+		sortByColumn: 'Metric Order'
+
+		extendedProperty ParameterMetadata =
+				{
+				  "version": 3,
+				  "kind": 2
+				}
+
+	column 'Metric Fields'
+		dataType: string
+		isHidden
+		lineageTag: 3e000000-0000-0000-0000-000000000003
+		summarizeBy: none
+		sourceColumn: [Value2]
+
+	column 'Metric Order'
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 3e000000-0000-0000-0000-000000000004
+		summarizeBy: sum
+		sourceColumn: [Value3]
+
+	partition 'Metric Selector' = calculated
+		mode: import
+		source =
+				{
+					("Opens", NAMEOF('_Measures'[Total Opens]), 0),
+					("Clicks", NAMEOF('_Measures'[Total Clicks]), 1),
+					("Unique Visitors", NAMEOF('_Measures'[Unique Visitors]), 2)
+				}

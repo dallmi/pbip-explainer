@@ -1,0 +1,35 @@
+{
+  "config": "{\"themeCollection\": {\"baseTheme\": {\"name\": \"CY23SU04\"}}}",
+  "filters": "[]",
+  "sections": [
+    {
+      "name": "ReportSection1",
+      "displayName": "Sales Overview",
+      "ordinal": 0,
+      "width": 1280,
+      "height": 720,
+      "config": "{}",
+      "filters": "[]",
+      "visualContainers": [
+        {
+          "x": 20,
+          "y": 20,
+          "z": 0,
+          "width": 400,
+          "height": 300,
+          "config": "{\"name\": \"revenueByCategory\", \"singleVisual\": {\"visualType\": \"clusteredColumnChart\", \"projections\": {\"Category\": [{\"queryRef\": \"Product.Category\"}], \"Y\": [{\"queryRef\": \"Sales.Revenue\"}]}, \"prototypeQuery\": {\"Version\": 2, \"From\": [{\"Name\": \"s\", \"Entity\": \"Sales\", \"Type\": 0}, {\"Name\": \"p\", \"Entity\": \"Product\", \"Type\": 0}], \"Select\": [{\"Column\": {\"Expression\": {\"SourceRef\": {\"Source\": \"p\"}}, \"Property\": \"Category\"}, \"Name\": \"Product.Category\"}, {\"Measure\": {\"Expression\": {\"SourceRef\": {\"Source\": \"s\"}}, \"Property\": \"Revenue\"}, \"Name\": \"Sales.Revenue\"}]}, \"vcObjects\": {\"title\": [{\"properties\": {\"text\": {\"expr\": {\"Literal\": {\"Value\": \"'Revenuebycategory'\"}}}}}]}}}",
+          "filters": "[]"
+        },
+        {
+          "x": 440,
+          "y": 20,
+          "z": 0,
+          "width": 400,
+          "height": 300,
+          "config": "{\"name\": \"marginCard\", \"singleVisual\": {\"visualType\": \"card\", \"projections\": {\"Values\": [{\"queryRef\": \"Sales.Margin %\"}]}, \"prototypeQuery\": {\"Version\": 2, \"From\": [{\"Name\": \"s\", \"Entity\": \"Sales\", \"Type\": 0}], \"Select\": [{\"Measure\": {\"Expression\": {\"SourceRef\": {\"Source\": \"s\"}}, \"Property\": \"Margin %\"}, \"Name\": \"Sales.Margin %\"}]}, \"vcObjects\": {\"title\": [{\"properties\": {\"text\": {\"expr\": {\"Literal\": {\"Value\": \"'Margincard'\"}}}}}]}}}",
+          "filters": "[]"
+        }
+      ]
+    }
+  ]
+}

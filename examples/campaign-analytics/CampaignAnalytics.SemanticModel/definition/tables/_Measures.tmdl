@@ -1,0 +1,74 @@
+table _Measures
+	lineageTag: f0000000-0000-0000-0000-000000000001
+
+	/// Number of times a campaign message was opened.
+	measure 'Total Opens' = SUM ( Engagement[Opens] )
+		formatString: #,0
+		displayFolder: Volume
+		lineageTag: f0000000-0000-0000-0000-000000000002
+
+	measure 'Total Clicks' = SUM ( Engagement[Clicks] )
+		formatString: #,0
+		displayFolder: Volume
+		lineageTag: f0000000-0000-0000-0000-000000000003
+
+	measure Recipients = SUM ( Engagement[Recipients] )
+		formatString: #,0
+		displayFolder: Volume
+		lineageTag: f0000000-0000-0000-0000-000000000004
+
+	/// Share of recipients who opened the message.
+	measure 'Open Rate' = DIVIDE ( [Total Opens], [Recipients] )
+		formatString: 0.0%
+		displayFolder: Rates
+		lineageTag: f0000000-0000-0000-0000-000000000005
+
+	measure 'Click-to-Open Rate' =
+			// clicks relative to opens, not to recipients
+			VAR _opens = [Total Opens]
+			RETURN
+				DIVIDE ( [Total Clicks], _opens )
+		formatString: 0.0%
+		displayFolder: Rates
+		lineageTag: f0000000-0000-0000-0000-000000000006
+
+	measure 'Unique Visitors' = DISTINCTCOUNT ( Engagement[Visitor ID] )
+		formatString: #,0
+		displayFolder: Reach
+		lineageTag: f0000000-0000-0000-0000-000000000007
+
+	measure 'Clicks by Send Date' = CALCULATE ( [Total Clicks], USERELATIONSHIP ( Engagement[Send Date], 'Date'[Date] ) )
+		formatString: #,0
+		displayFolder: Volume
+		lineageTag: f0000000-0000-0000-0000-000000000008
+
+	measure 'Clicks YTD' = TOTALYTD ( [Total Clicks], 'Date'[Date] )
+		formatString: #,0
+		displayFolder: Time
+		lineageTag: f0000000-0000-0000-0000-000000000009
+
+	measure 'Old Bounce Rate' = DIVIDE ( SUM ( Engagement[Bounces] ), [Recipients] )
+		formatString: 0.0%
+		lineageTag: f0000000-0000-0000-0000-000000000010
+
+	measure 'Selected Metric Value' =
+			SWITCH (
+				SELECTEDVALUE ( 'Metric Selector'[Metric Order] ),
+				0, [Total Opens],
+				1, [Total Clicks],
+				[Unique Visitors]
+			)
+		formatString: #,0
+		lineageTag: f0000000-0000-0000-0000-000000000011
+
+	column Value
+		dataType: string
+		isHidden
+		lineageTag: f0000000-0000-0000-0000-000000000012
+		summarizeBy: none
+		isNameInferred
+		sourceColumn: [Value]
+
+	partition _Measures = calculated
+		mode: import
+		source = ROW ( "Value", BLANK () )

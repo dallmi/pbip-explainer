@@ -1,0 +1,31 @@
+table Division
+	lineageTag: d0000000-0000-0000-0000-000000000001
+
+	column 'Division Key'
+		dataType: string
+		isHidden
+		lineageTag: d0000000-0000-0000-0000-000000000002
+		summarizeBy: none
+		sourceColumn: Division Key
+
+	column Division
+		dataType: string
+		lineageTag: d0000000-0000-0000-0000-000000000003
+		summarizeBy: none
+		sourceColumn: Division
+
+	column Region
+		dataType: string
+		lineageTag: d0000000-0000-0000-0000-000000000004
+		summarizeBy: none
+		sourceColumn: Region
+
+	partition Division = m
+		mode: import
+		source =
+				let
+					Source = Table.FromRows(Json.Document(Binary.Decompress(Binary.FromText("i45WMlTSUTIyMDLQNzDRNzBQMDQyNjRSitUBAA==", BinaryEncoding.Base64), Compression.Deflate)), let _t = ((type nullable text) meta [Serialized.Text = true]) in type table [#"Division Key" = _t, Division = _t]),
+					Joined = Table.NestedJoin(Source, {"Division Key"}, #"Region Map", {"Division Key"}, "Map", JoinKind.LeftOuter),
+					Expanded = Table.ExpandTableColumn(Joined, "Map", {"Region"}, {"Region"})
+				in
+					Expanded

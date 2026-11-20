@@ -1,0 +1,88 @@
+/// One row per campaign, division and day. Grain: Date x Campaign x Division x Visitor.
+table Engagement
+	lineageTag: e0000000-0000-0000-0000-000000000001
+
+	column Date
+		dataType: dateTime
+		formatString: Short Date
+		lineageTag: e0000000-0000-0000-0000-000000000002
+		summarizeBy: none
+		sourceColumn: event_date
+
+	column 'Send Date'
+		dataType: dateTime
+		isHidden
+		formatString: Short Date
+		lineageTag: e0000000-0000-0000-0000-000000000003
+		summarizeBy: none
+		sourceColumn: send_date
+
+	column 'Campaign Key'
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: e0000000-0000-0000-0000-000000000004
+		summarizeBy: none
+		sourceColumn: campaign_key
+
+	column 'Division Key'
+		dataType: string
+		isHidden
+		lineageTag: e0000000-0000-0000-0000-000000000005
+		summarizeBy: none
+		sourceColumn: division_key
+
+	column Opens
+		dataType: int64
+		formatString: #,0
+		lineageTag: e0000000-0000-0000-0000-000000000006
+		summarizeBy: sum
+		sourceColumn: opens
+
+	column Clicks
+		dataType: int64
+		formatString: #,0
+		lineageTag: e0000000-0000-0000-0000-000000000007
+		summarizeBy: sum
+		sourceColumn: clicks
+
+	column Recipients
+		dataType: int64
+		formatString: #,0
+		lineageTag: e0000000-0000-0000-0000-000000000008
+		summarizeBy: sum
+		sourceColumn: recipients
+
+	/// Pseudonymous visitor identifier from the tracking pipeline.
+	column 'Visitor ID'
+		dataType: string
+		isHidden
+		lineageTag: e0000000-0000-0000-0000-000000000009
+		summarizeBy: none
+		sourceColumn: visitor_id
+
+	column 'Legacy Flag'
+		dataType: string
+		lineageTag: e0000000-0000-0000-0000-000000000010
+		summarizeBy: none
+		sourceColumn: legacy_flag
+
+	column 'Click Rate Row' = DIVIDE ( Engagement[Clicks], Engagement[Recipients] )
+		dataType: double
+		formatString: 0.0%
+		lineageTag: e0000000-0000-0000-0000-000000000011
+		summarizeBy: none
+
+	partition Engagement = m
+		mode: import
+		source =
+				let
+					Source = Databricks.Catalogs(Host, HttpPath, [Catalog = null, Database = null, EnableAutomaticProxyDiscovery = null]),
+					comms_catalog = Source{[Name="comms",Kind="Database"]}[Data],
+					gold_schema = comms_catalog{[Name="gold",Kind="Schema"]}[Data],
+					fact = gold_schema{[Name="fact_engagement",Kind="Table"]}[Data],
+					#"Only valid" = Table.SelectRows(fact, each [is_valid] = true and [event_date] >= #date(2024, 1, 1))
+				in
+					#"Only valid"
+
+	annotation PBI_ResultType = Table
