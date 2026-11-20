@@ -1,0 +1,369 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>pbip-explainer</title>
+<style>
+:root{--primary:#E60000;--bordeaux:#8A000A;--bronze:#B98E2C;--g1:#CCCABC;--g2:#B8B3A2;--g3:#8E8D83;--g4:#7A7870;--g5:#5A5D5C;--g6:#404040;
+--surface:#ECEBE4;--row:#F8F7F2;--page:#F7F7F5;--ok:#6F7A1A;--warn:#E4A911;--bad:#BD000C;--info:#0C7EC6;
+--font:"Frutiger 45 Light",Frutiger,"Helvetica Neue",Helvetica,Arial,"Segoe UI",system-ui,sans-serif;--mono:Consolas,"SF Mono",Menlo,monospace;
+--top:52px}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font-family:var(--font);background:#fff;color:var(--g6);font-size:14px;line-height:1.5;display:flex;flex-direction:column}
+a{color:inherit}
+/* top bar */
+.top{height:var(--top);flex:none;display:flex;align-items:center;gap:14px;padding:0 20px;border-bottom:1px solid var(--surface)}
+.top h1{font-size:17px;font-weight:600;color:#000;letter-spacing:.01em}
+.top h1 span{color:var(--primary)}
+.top .ver{color:var(--g4);font-size:12px}
+.top .local{margin-left:auto;color:var(--g4);font-size:12px;white-space:nowrap}
+.top .local::before{content:"";display:inline-block;width:7px;height:7px;background:var(--ok);margin-right:6px;vertical-align:1px}
+.btn{font:inherit;font-size:13px;padding:6px 13px;border:1px solid var(--g2);background:#fff;color:var(--g6);border-radius:2px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.btn:hover{border-color:var(--g6);color:#000}
+.btn.primary{background:var(--g6);border-color:var(--g6);color:#fff}
+.btn.primary:hover{background:#000}
+.btn:focus-visible,select:focus-visible,input:focus-visible,.tab:focus-visible,.drop:focus-visible{outline:2px solid var(--g6);outline-offset:1px}
+/* layout */
+.shell{flex:1;display:grid;grid-template-columns:250px minmax(0,1fr);min-height:0}
+aside{border-right:1px solid var(--surface);overflow:auto;padding:16px 12px}
+aside h2{font-size:11.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--g4);margin:0 4px 8px}
+.runs{list-style:none}
+.runs li{padding:8px 6px;cursor:pointer;display:flex;gap:8px;align-items:flex-start;border-bottom:1px solid var(--row)}
+.runs li:hover{background:var(--row)}
+.runs li.sel{background:var(--row);box-shadow:inset 2px 0 0 var(--primary)}
+.runs .nm{color:#000;font-size:13px;word-break:break-word;line-height:1.3}
+.runs .dt{color:var(--g4);font-size:11px}
+.runs .del{margin-left:auto;border:0;background:none;color:var(--g3);cursor:pointer;font-size:16px;line-height:1;padding:0 3px;visibility:hidden}
+.runs li:hover .del,.runs li.sel .del{visibility:visible}
+.runs .del:hover{color:var(--bad)}
+.dot{width:7px;height:7px;flex:none;margin-top:6px;background:var(--g2)}
+.dot.done{background:var(--ok)}.dot.error{background:var(--bad)}.dot.running{background:var(--warn)}
+.datadir{font-size:11px;color:var(--g4);margin:12px 4px 0;word-break:break-all}
+main{min-width:0;min-height:0;display:flex;flex-direction:column}
+.view{flex:1;min-height:0;display:none;flex-direction:column}
+.view.on{display:flex}
+/* home */
+.home{overflow:auto;padding:48px 40px}
+.home .inner{max-width:760px;margin:0 auto}
+.home h2{font-size:26px;font-weight:400;color:#000;line-height:1.2}
+.home .lead{color:var(--g5);margin:8px 0 24px;max-width:620px}
+.drop{display:block;border:1.5px dashed var(--g2);background:var(--page);padding:56px 24px;text-align:center;cursor:pointer;transition:background .15s,border-color .15s}
+.drop:hover,.drop.over{border-color:var(--g6);background:var(--row)}
+.drop.over{border-style:solid}
+.drop .ico{width:44px;height:44px;margin:0 auto 12px;border:1.5px solid var(--g3);position:relative}
+.drop .ico::after{content:"ZIP";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:11px;letter-spacing:.06em;color:var(--g5)}
+.drop .big{font-size:18px;color:#000;margin-bottom:6px}
+.drop .hint{color:var(--g4);font-size:12.5px}
+.drop input{display:none}
+.how{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--surface);border:1px solid var(--surface);margin-top:28px}
+.how div{background:#fff;padding:14px 16px;font-size:12.5px;color:var(--g5)}
+.how b{display:block;color:#000;font-size:13px;margin-bottom:2px}
+.how i{font-style:normal;color:var(--primary);font-weight:600;margin-right:6px}
+.prog{margin-top:28px}
+.prog h3{font-size:16px;font-weight:600;color:#000}
+.bar{height:3px;background:var(--surface);margin:10px 0 8px;overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:var(--g6);transition:width .2s}
+.bar.indet i{width:30%;animation:slide 1.1s ease-in-out infinite}
+@keyframes slide{0%{margin-left:-30%}100%{margin-left:100%}}
+.steps{list-style:none;font-size:13px;color:var(--g5)}
+.steps li{padding:2px 0}
+.steps li.done::before{content:"✓";color:var(--ok);margin-right:8px}
+.steps li.now::before{content:"•";color:var(--primary);margin-right:8px}
+.err{border-left:3px solid var(--bad);background:#FBF3F3;padding:10px 14px;margin-top:12px}
+/* report view */
+.rhead{flex:none;padding:14px 24px 0;border-bottom:1px solid var(--surface)}
+.rrow{display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap}
+.rtitle{font-size:22px;color:#000;line-height:1.2}
+.rmeta{color:var(--g4);font-size:12px;margin-top:3px}
+.export{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.export .lbl{font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--g4);margin-right:2px}
+.enr{font-size:12px;color:var(--g4);margin-top:4px}
+.enr a{color:var(--g5);text-decoration:underline;text-decoration-color:var(--g2);text-underline-offset:2px}
+.enr a:hover{color:#000}
+.enr #enr-state{margin-right:6px}
+.enr .okmsg{color:var(--ok)}.enr .errmsg{color:var(--bad)}
+.tabs{display:flex;gap:22px;margin-top:12px}
+.tab{font:inherit;font-size:13.5px;background:none;border:0;border-bottom:2px solid transparent;padding:6px 0 9px;color:var(--g5);cursor:pointer}
+.tab:hover{color:#000}
+.tab.on{color:#000;border-bottom-color:var(--primary)}
+.tab .n{display:inline-block;min-width:18px;padding:0 5px;margin-left:5px;font-size:11px;background:var(--surface);color:var(--g6);border-radius:2px;text-align:center}
+.pane{flex:1;min-height:0;display:none}
+.pane.on{display:block}
+#pane-docs iframe{width:100%;height:100%;border:0;display:block}
+.scroll{overflow:auto;height:100%;padding:22px 24px 40px}
+.scroll .inner{max-width:980px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));border-top:1px solid var(--surface);border-left:1px solid var(--surface);margin-bottom:22px}
+.tile{background:#fff;padding:12px 14px;border-right:1px solid var(--surface);border-bottom:1px solid var(--surface)}
+.tile .v{font-size:24px;color:#000;line-height:1.1}
+.tile .l{font-size:12px;color:var(--g4)}
+.find{border-left:3px solid var(--g3);padding:8px 14px;margin:8px 0;background:#fff}
+.find.error{border-left-color:var(--bad)}.find.warning{border-left-color:var(--warn)}.find.info{border-left-color:var(--info)}
+.find .sev{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--g4)}
+.find ul{margin:3px 0 0 18px;font-size:12.5px;color:var(--g5)}
+.find .adv{font-size:12.5px;color:var(--g4)}
+h3.sec{font-size:15px;font-weight:600;color:#000;margin:4px 0 10px}
+.ask{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+select,input[type=text]{font:inherit;font-size:13px;padding:7px 9px;border:1px solid var(--g2);border-radius:2px;background:#fff;color:var(--g6)}
+input[type=text]{flex:1;min-width:200px}
+.chips{margin:12px 0 4px;display:flex;gap:6px;flex-wrap:wrap}
+.chip{font:inherit;font-size:12px;border:1px solid var(--surface);background:#fff;color:var(--g5);padding:3px 9px;border-radius:2px;cursor:pointer}
+.chip:hover{border-color:var(--g3);color:#000}
+pre{font-family:var(--mono);font-size:12.5px;background:var(--page);border-left:2px solid var(--g2);padding:12px 16px;margin-top:14px;white-space:pre-wrap;line-height:1.5}
+.muted{color:var(--g4)}.small{font-size:12.5px}
+.empty{color:var(--g4);font-size:12.5px;padding:8px 6px}
+.hidden{display:none!important}
+@media (max-width:900px){.shell{grid-template-columns:1fr}aside{display:none}.how{grid-template-columns:1fr}.home{padding:24px 16px}.rhead{padding:12px 16px 0}.export{margin-left:0}}
+</style>
+</head>
+<body>
+<div class="top">
+  <h1>pbip<span>·</span>explainer</h1><span class="ver" id="ver"></span>
+  <span class="local">Runs locally · nothing leaves this computer</span>
+  <button class="btn" id="new">New analysis</button>
+</div>
+<div class="shell">
+<aside>
+  <h2>Analyses</h2>
+  <ul class="runs" id="runs"></ul>
+  <p class="datadir" id="datadir"></p>
+</aside>
+<main>
+  <!-- home: drop + progress -->
+  <section class="view home on" id="v-home">
+    <div class="inner">
+      <h2>Understand any Power BI report</h2>
+      <p class="lead">Drop a Power BI project and get its documentation: pages, data glossary, data model with join keys,
+        every DAX measure with its dependencies, lineage, sources and a model health check.</p>
+      <label class="drop" id="drop" tabindex="0">
+        <div class="ico"></div>
+        <div class="big">Drop a Power BI project (.zip) here</div>
+        <div class="hint">or click to choose a file</div>
+        <input type="file" id="file" accept=".zip,application/zip">
+      </label>
+      <div class="how">
+        <div><b><i>1</i>Save as PBIP</b>In Power BI Desktop: File › Save as › Power BI project (.pbip).</div>
+        <div><b><i>2</i>Zip the folder</b>The folder with the .pbip file, .SemanticModel and .Report.</div>
+        <div><b><i>3</i>Drop it here</b>Analysis takes seconds. Export as HTML or Markdown.</div>
+      </div>
+      <div class="prog hidden" id="progress">
+        <h3 id="p-name"></h3>
+        <div class="bar" id="p-bar"><i></i></div>
+        <ul class="steps" id="p-steps"></ul>
+        <div class="err hidden" id="p-err"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- report -->
+  <section class="view" id="v-report">
+    <div class="rhead">
+      <div class="rrow">
+        <div><div class="rtitle" id="r-title"></div><div class="rmeta" id="r-meta"></div>
+          <div class="enr" id="r-enr"><span id="enr-state"></span>
+            <a href="#" id="enr-tpl">Download template</a> · <a href="#" id="enr-up">Upload filled enrichment.json</a>
+            <input type="file" id="enr-file" accept=".json,application/json" class="hidden"></div></div>
+        <div class="export" id="r-export"></div>
+      </div>
+      <div class="tabs" role="tablist">
+        <button class="tab on" data-pane="docs" role="tab">Documentation</button>
+        <button class="tab" data-pane="ask" role="tab">Ask</button>
+        <button class="tab" data-pane="health" role="tab">Health<span class="n" id="n-find">0</span></button>
+      </div>
+    </div>
+    <div class="pane on" id="pane-docs">
+      <iframe id="docframe" title="Documentation" sandbox="allow-scripts allow-same-origin allow-popups allow-downloads"></iframe>
+    </div>
+    <div class="pane" id="pane-ask"><div class="scroll"><div class="inner">
+      <h3 class="sec">Ask about this report</h3>
+      <div class="ask">
+        <select id="q-cmd" aria-label="Question type">
+          <option value="measure">How is a measure calculated?</option>
+          <option value="table">What is in a table?</option>
+          <option value="column">Who uses a column?</option>
+          <option value="page">What does a page show?</option>
+          <option value="path">How are two tables joined?</option>
+          <option value="impact">What breaks if I change …?</option>
+          <option value="find">Find a term</option>
+          <option value="unused">Unused measures and columns</option>
+          <option value="findings">Model health findings</option>
+          <option value="summary">Summary</option>
+        </select>
+        <input type="text" id="q-a" list="names" aria-label="Name" autocomplete="off">
+        <input type="text" id="q-b" list="names-t" class="hidden" placeholder="Second table" aria-label="Second table" autocomplete="off">
+        <button class="btn primary" id="q-go">Ask</button>
+      </div>
+      <datalist id="names"></datalist><datalist id="names-t"></datalist>
+      <div class="chips" id="q-chips"></div>
+      <pre id="q-out" class="hidden"></pre>
+    </div></div></div>
+    <div class="pane" id="pane-health"><div class="scroll"><div class="inner">
+      <div class="tiles" id="r-tiles"></div>
+      <h3 class="sec">Findings</h3>
+      <div id="r-findings"></div>
+      <p class="small muted" id="r-note" style="margin-top:14px"></p>
+    </div></div></div>
+  </section>
+</main>
+</div>
+<script>
+(function(){
+const $ = id => document.getElementById(id);
+const H = {'X-PBIPX':'1'};
+let current = null, poll = null, names = {};
+
+function el(tag, attrs, ...kids){ const e=document.createElement(tag);
+  for(const [k,v] of Object.entries(attrs||{})){ if(k==='class') e.className=v; else if(k==='text') e.textContent=v; else e.setAttribute(k,v);}
+  for(const k of kids){ if(k!=null) e.append(k);} return e; }
+async function getJSON(url){ const r=await fetch(url,{cache:'no-store'}); if(!r.ok){ let m=r.status; try{m=(await r.json()).error;}catch(_){} throw new Error(m);} return r.json(); }
+const enc = encodeURIComponent;
+
+function show(view){ ['v-home','v-report'].forEach(v=>$(v).classList.toggle('on',v===view)); }
+function tab(name){ document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.dataset.pane===name));
+  document.querySelectorAll('.pane').forEach(p=>p.classList.toggle('on',p.id==='pane-'+name)); }
+document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{ tab(t.dataset.pane); if(t.dataset.pane==='ask') $('q-a').focus(); }));
+$('new').addEventListener('click',()=>{ current=null; markSelected(null); $('progress').classList.add('hidden'); show('v-home'); });
+
+// ---------------------------------------------------------------- upload
+const drop=$('drop'), file=$('file');
+['dragenter','dragover'].forEach(t=>drop.addEventListener(t,e=>{e.preventDefault(); drop.classList.add('over');}));
+['dragleave','drop'].forEach(t=>drop.addEventListener(t,e=>{e.preventDefault(); drop.classList.remove('over');}));
+drop.addEventListener('drop',e=>{ const f=e.dataTransfer.files[0]; if(f) upload(f); });
+drop.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); file.click(); }});
+file.addEventListener('change',()=>{ if(file.files[0]) upload(file.files[0]); file.value=''; });
+// a zip dropped anywhere on the window counts too
+document.addEventListener('dragover',e=>e.preventDefault());
+document.addEventListener('drop',e=>{ e.preventDefault(); const f=e.dataTransfer&&e.dataTransfer.files[0]; if(f&&e.target!==drop&&!drop.contains(e.target)) upload(f); });
+
+function showProgress(name){
+  show('v-home'); $('progress').classList.remove('hidden');
+  $('p-name').textContent=name; $('p-err').classList.add('hidden'); $('p-steps').innerHTML='';
+  $('p-bar').classList.remove('indet'); $('p-bar').firstElementChild.style.width='0';
+}
+function showError(msg){ $('p-bar').classList.remove('indet'); const e=$('p-err'); e.textContent=msg; e.classList.remove('hidden');
+  [...$('p-steps').children].forEach(li=>li.classList.remove('now')); }
+function upload(f){
+  showProgress(f.name); clearInterval(poll);
+  if(!/\.zip$/i.test(f.name)){ showError('Please drop a .zip file. A .pbix cannot be read: save it as a Power BI project (.pbip) first and zip the folder.'); return; }
+  $('p-steps').append(el('li',{class:'now',text:'Uploading '+(f.size/1048576).toFixed(1)+' MB'}));
+  const x=new XMLHttpRequest(); x.open('POST','/api/analyse');
+  x.setRequestHeader('X-PBIPX','1'); x.setRequestHeader('X-Filename',enc(f.name));
+  x.upload.onprogress=e=>{ if(e.lengthComputable) $('p-bar').firstElementChild.style.width=(100*e.loaded/e.total)+'%'; };
+  x.onload=()=>{ let r={}; try{r=JSON.parse(x.responseText);}catch(_){}
+    if(x.status!==202){ showError(r.error||('Upload failed ('+x.status+')')); return; }
+    $('p-bar').classList.add('indet'); watch(r.id); refreshRuns(r.id); };
+  x.onerror=()=>showError('Upload failed. Is the pbip-explainer window still open?');
+  x.send(f);
+}
+function watch(id){
+  current=id; clearInterval(poll);
+  const tick=async()=>{ let m; try{ m=await getJSON('/api/runs/'+enc(id)); }catch(e){ return; }
+    if(current!==id){ clearInterval(poll); return; }
+    const ul=$('p-steps'); ul.innerHTML=''; ul.append(el('li',{class:'done',text:'Uploaded'}));
+    (m.steps||[]).forEach(s=>ul.append(el('li',{class:'done',text:s})));
+    if(m.step) ul.append(el('li',{class:'now',text:m.step+' …'}));
+    if(m.status==='done'){ clearInterval(poll); refreshRuns(id); showResult(m); }
+    else if(m.status==='error'){ clearInterval(poll); refreshRuns(id); showError(m.error||'The analysis failed.'); }
+  };
+  tick(); poll=setInterval(tick,600);
+}
+
+// ---------------------------------------------------------------- result
+function showResult(m){
+  current=m.id; show('v-report'); markSelected(m.id);
+  $('r-title').textContent=m.title||m.name;
+  $('r-meta').textContent=[m.name, m.modelFormat&&('model '+m.modelFormat), m.reportFormat&&('report '+m.reportFormat),
+    'analysed '+(m.created||'').replace('T',' ')].filter(Boolean).join(' · ');
+  const base='/runs/'+enc(m.id)+'/', f=m.files||{}, ex=$('r-export'); ex.innerHTML='';
+  ex.append(el('span',{class:'lbl',text:'Export'}));
+  if(f.html) ex.append(el('a',{class:'btn primary',href:base+f.html+'?download',text:'HTML'}));
+  if(f.md) ex.append(el('a',{class:'btn',href:base+f.md+'?download',text:'Markdown'}));
+  (f.svg||[]).forEach(p=>ex.append(el('a',{class:'btn',href:base+p+'?download',text:'Diagram (SVG)'})));
+  ex.append(el('a',{class:'btn',href:'/api/runs/'+enc(m.id)+'/knowledge.zip',title:'model.json, agent brief, CSVs and docs for agents or Excel',text:'Knowledge pack'}));
+  if(f.html) ex.append(el('a',{class:'btn',href:base+f.html,target:'_blank',rel:'noopener',title:'Open the documentation in its own browser tab',text:'↗'}));
+  $('docframe').src = f.html ? base+f.html+'?t='+Date.now() : 'about:blank';
+  $('enr-state').className=''; $('enr-state').textContent = m.enriched ? 'Business descriptions added '+m.enriched.replace('T',' ').slice(0,16)+'.' : 'No business descriptions yet:';
+  $('enr-tpl').href = base+'enrichment.json?download';
+  // health
+  const t=$('r-tiles'); t.innerHTML=''; const s=m.stats||{};
+  [['pages','pages'],['visuals','visuals'],['tables','tables'],['measures','measures'],['relationships','relationships'],['columns','columns'],['roles','RLS roles']]
+    .forEach(([k,l])=>{ if(s[k]!=null) t.append(el('div',{class:'tile'},el('div',{class:'v',text:String(s[k])}),el('div',{class:'l',text:l}))); });
+  const fd=$('r-findings'); fd.innerHTML=''; const fs=m.findings||[]; $('n-find').textContent=fs.length;
+  if(!fs.length) fd.append(el('p',{class:'small muted',text:'No findings.'}));
+  fs.forEach(x=>{ const d=el('div',{class:'find '+x.severity},el('div',{class:'sev',text:x.severity+' · '+x.code}),el('div',{text:x.message}));
+    if(x.advice) d.append(el('div',{class:'adv',text:x.advice}));
+    if(x.objects&&x.objects.length){ const ul=el('ul'); x.objects.forEach(o=>ul.append(el('li',{text:String(o)}))); d.append(ul);} fd.append(d); });
+  $('r-note').textContent=m.liveConnection?'This report uses a live connection: the semantic model is not in the zip, so only the report side is documented.':
+    'A PBIP holds metadata only, no data: everything here explains how numbers are built, not their values.';
+  $('q-out').classList.add('hidden'); $('q-a').value=''; $('q-b').value='';
+  tab('docs'); loadNames(m.id);
+}
+
+// ---------------------------------------------------------------- enrichment upload
+$('enr-up').addEventListener('click',e=>{ e.preventDefault(); $('enr-file').click(); });
+$('enr-file').addEventListener('change',async()=>{ const f=$('enr-file').files[0]; $('enr-file').value=''; if(!f||!current) return;
+  const st=$('enr-state'); st.className=''; st.textContent='Rebuilding the documentation …';
+  try{ const r=await fetch('/api/runs/'+enc(current)+'/enrichment',{method:'POST',headers:{...H,'Content-Type':'application/json'},body:await f.text()});
+    const j=await r.json(); if(!r.ok) throw new Error(j.error||r.status);
+    showResult(j.run); const s2=$('enr-state'); s2.className='okmsg'; s2.textContent='Added descriptions for '+j.described+' objects; shown as "AI-drafted · review".';
+  }catch(err){ st.className='errmsg'; st.textContent=err.message; } });
+
+// ---------------------------------------------------------------- ask
+const ph={measure:'Measure name',table:'Table name',column:'Table[Column]',page:'Page name',path:'First table',
+  impact:'Measure, Table[Column] or table',find:'Text to look for'};
+async function loadNames(id){ try{ names=await getJSON('/api/runs/'+enc(id)+'/names'); }catch(e){ names={}; } setCmd(); }
+function fill(dl,items){ dl.innerHTML=''; (items||[]).slice(0,3000).forEach(v=>dl.append(el('option',{value:v}))); }
+function setCmd(){
+  const c=$('q-cmd').value, needs=c in ph;
+  $('q-a').classList.toggle('hidden',!needs); $('q-a').placeholder=ph[c]||'';
+  $('q-b').classList.toggle('hidden',c!=='path');
+  const pick={measure:names.measures,table:names.tables,column:names.columns,page:names.pages,path:names.tables,
+    impact:[].concat(names.measures||[],names.columns||[],names.tables||[]),find:[]}[c];
+  fill($('names'),pick); fill($('names-t'),names.tables);
+  const chips=$('q-chips'); chips.innerHTML='';
+  (pick||[]).slice(0,8).forEach(v=>{ const b=el('button',{class:'chip',text:v}); b.addEventListener('click',()=>{ $('q-a').value=v; if(c!=='path') ask(); else $('q-b').focus(); }); chips.append(b); });
+}
+$('q-cmd').addEventListener('change',()=>{ setCmd(); if(!($('q-cmd').value in ph)) ask(); else $('q-a').focus(); });
+$('q-go').addEventListener('click',ask);
+['q-a','q-b'].forEach(i=>$(i).addEventListener('keydown',e=>{ if(e.key==='Enter') ask(); }));
+async function ask(){
+  if(!current) return; const c=$('q-cmd').value;
+  const args=c==='path'?[$('q-a').value,$('q-b').value]:(c in ph?[$('q-a').value]:[]);
+  const out=$('q-out'); out.classList.remove('hidden'); out.textContent='…';
+  try{ const r=await fetch('/api/runs/'+enc(current)+'/query',{method:'POST',headers:{...H,'Content-Type':'application/json'},body:JSON.stringify({command:c,args})});
+    const j=await r.json(); out.textContent=j.text||j.error||'No answer.'; }catch(e){ out.textContent='Request failed: '+e.message; }
+}
+
+// ---------------------------------------------------------------- runs list
+async function refreshRuns(sel){
+  let list=[]; try{ list=await getJSON('/api/runs'); }catch(e){}
+  const ul=$('runs'); ul.innerHTML='';
+  if(!list.length) ul.append(el('li',{class:'empty',text:'Nothing analysed yet.'}));
+  list.forEach(r=>{ const del=el('button',{class:'del',title:'Delete this analysis','aria-label':'Delete',text:'×'});
+    const li=el('li',{'data-id':r.id},el('span',{class:'dot '+(r.status||'')}),
+      el('div',{},el('div',{class:'nm',text:r.title||r.name||r.id}),
+        el('div',{class:'dt',text:(r.created||'').replace('T',' ').slice(0,16)+(r.status==='error'?' · failed':'')})),del);
+    li.addEventListener('click',()=>openRun(r.id));
+    del.addEventListener('click',async e=>{ e.stopPropagation();
+      if(!confirm('Delete the analysis of "'+(r.title||r.name)+'" from this computer?')) return;
+      await fetch('/api/runs/'+enc(r.id)+'/delete',{method:'POST',headers:H});
+      if(current===r.id){ current=null; show('v-home'); $('progress').classList.add('hidden'); }
+      refreshRuns(); });
+    ul.append(li); });
+  markSelected(sel||current);
+}
+function markSelected(id){ [...$('runs').children].forEach(li=>li.classList.toggle('sel',!!id&&li.dataset.id===id)); }
+async function openRun(id){
+  let m; try{ m=await getJSON('/api/runs/'+enc(id)); }catch(e){ return; }
+  if(m.status==='done') showResult(m);
+  else { showProgress(m.title||m.name||id); current=id; markSelected(id);
+    if(m.status==='running'){ $('p-bar').classList.add('indet'); watch(id);} else showError(m.error||'This analysis did not finish.'); }
+}
+
+getJSON('/api/info').then(i=>{ $('ver').textContent='v'+i.version; $('datadir').textContent='Saved in '+i.dataDir; }).catch(()=>{});
+refreshRuns();
+})();
+</script>
+</body>
+</html>

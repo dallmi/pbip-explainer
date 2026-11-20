@@ -5,14 +5,24 @@ Hand over a Power BI project as a zip, get back everything needed to understand 
 - a **knowledge pack** – structured facts an agent can answer any question from (`model.json`, CSVs, `agent-brief.md`)
 - **documentation** for business users and the tech team – one offline HTML file and the same content as Markdown, with an interactive data model diagram, data glossary, page-by-page description, DAX catalog with dependencies, lineage from source to visual, Power Query sources and a model health check
 - a **query CLI** for the questions that come up when nobody remembers how the semantic layer works: how is this measure calculated, how are these tables joined, what breaks if I change this column, what is unused
+- a **desktop app** (local web UI) that does all of this by drag and drop
 
 ## Why
 
 Semantic models grow over years. Measures pile up, relationships get bi-directional "just to make it work", and the people who built them move on. PBIP stores the model (TMDL) and the report (PBIR) as text, so all of it can be read without Power BI – this tool does the reading and turns it into something people and agents can use.
 
-## Quick start
+## Quick start – desktop app
 
 1. In Power BI Desktop: *File › Save as › Power BI project (.pbip)*. Zip the folder that holds `X.pbip`, `X.SemanticModel/` and `X.Report/`.
+2. Double-click `start.bat` (Windows) or `start.command` (macOS). A console window opens and the browser shows the app.
+3. Drop the zip on the page. The documentation appears in the app, with tabs for *Documentation*, *Ask* and *Health*, and export buttons for HTML, Markdown, the model diagram (SVG) and the knowledge pack.
+4. Optional: *Download template* → fill `enrichment.json` (by an agent or by hand) → *Upload filled enrichment.json*. The docs are rebuilt with the business descriptions, marked *AI-drafted · review*.
+
+How it fits a locked-down PC: no admin rights, no installs, no .exe. The app is a small web server from Python's standard library bound to `127.0.0.1` only (no firewall prompt, nothing reachable from the network); write requests need a custom header and same origin, and unknown `Host` headers are refused. Analyses are kept in `work/ui-runs/` (git-ignored) and can be deleted in the app. Close the console window to stop. Options: `python app/server.py --port 8765 --data-dir <folder> --no-browser`.
+
+## Quick start – command line
+
+1. Save and zip the project as above.
 2. Run:
 
 ```bash
@@ -83,6 +93,7 @@ TMDL and model.bim semantic models; PBIR and legacy report.json reports. Details
 
 - Code: `skills/pbip-explain/scripts/pbipx/` (`tmdl`, `model`, `report`, `dax`, `mquery`, `analysis`, `pack`, `docs`, `diagram`, `query`)
 - Synthetic examples: `python3 examples/generate_examples.py` (TMDL + PBIR with every feature the analysis checks; legacy model.bim + report.json)
-- Tests: `python3 tests/test_pbipx.py` – must be green before every commit
+- Desktop app: `app/server.py` (stdlib HTTP server + JSON API) and `app/static/index.html` (single page, no external assets); launchers `start.bat`, `start.command`
+- Tests: `python3 tests/test_pbipx.py` and `python3 tests/test_app.py` – must be green before every commit
 - Copilot build: `python3 tests/test_build_copilot_skills.py` – builds the packages and checks them against the host limits; must be green after every change to `skills/` or `copilot/`
 - `work/` is git-ignored. Real projects are analysed there and never committed.

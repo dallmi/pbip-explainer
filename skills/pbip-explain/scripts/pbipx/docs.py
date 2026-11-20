@@ -634,8 +634,8 @@ h3{font-size:17px;font-weight:600;color:#000;margin:26px 0 8px}
 h4{font-size:14.5px;font-weight:600;color:#000;margin:18px 0 6px}
 p{margin:6px 0}
 .lead{font-size:15px;max-width:820px}
-.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:1px;background:var(--surface);border:1px solid var(--surface);margin:12px 0 4px}
-.tile{background:var(--bg);padding:12px 14px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));border-top:1px solid var(--surface);border-left:1px solid var(--surface);margin:12px 0 4px}
+.tile{background:var(--bg);padding:12px 14px;border-right:1px solid var(--surface);border-bottom:1px solid var(--surface)}
 .tile .v{font-size:26px;color:#000;line-height:1.1}
 .tile .l{font-size:12px;color:var(--g4)}
 table{border-collapse:collapse;width:100%;margin:8px 0 14px;font-size:13px}
