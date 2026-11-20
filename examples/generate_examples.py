@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """Generate the synthetic example projects used by the tests.
 
-campaign-analytics/  PBIP with TMDL model + PBIR report. Covers: Databricks / SQL / embedded sources,
+campaign-analytics/  PBIP with TMDL model + PBIR report (incl. a report-level measure). Covers: Databricks / SQL / embedded sources,
                      parameters, shared query with a Power Query join, calculated table + column, date table,
                      hierarchy, inactive relationship + USERELATIONSHIP, bi-directional relationship,
                      calculation group, field parameter, RLS role, descriptions, display folders,
                      implicit measure, broken visual field, unresolved DAX reference, page/report filters,
                      drill-through page, hidden page, bookmark.
+thin-report/         the campaign report alone, with a live connection (model not in the package).
 legacy-sales/        PBIP with model.bim (TMSL) + legacy report.json (stringified configs).
 
 All names and values are invented. Run: python3 examples/generate_examples.py
@@ -566,6 +567,15 @@ role 'Division Lead'
                   "Series": [col("Time Intelligence", "Time Calculation")]},
            vco=title("Selected metric"))
     visual("overview", "logo", "image", 1180, 10, 80, 50)
+    # a measure defined in the report (reportExtensions.json), not in the model
+    wj(rd / "reportExtensions.json", {
+        "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/reportExtension/1.0.0/schema.json",
+        "name": "extension",
+        "entities": [{"name": "_Measures", "measures": [{
+            "name": "Opens per Recipient", "dataType": "Double", "formatString": "0.00",
+            "expression": "DIVIDE ( [Total Opens], [Recipients] )"}]}]})
+    visual("overview", "kpiOpensPerRecipient", "card", 460, 80, 180, 120,
+           query={"Values": [mea("_Measures", "Opens per Recipient")]}, vco=title("Opens per recipient"))
 
     wj(rd / "pages" / "campaignDetail" / "page.json", {
         "name": "campaignDetail", "displayName": "Campaign Detail", "displayOption": "FitToPage",
@@ -589,6 +599,22 @@ role 'Division Lead'
            query={"Values": [col("Engagement", "Date"), mea("_Measures", "Recipients")]})
     wj(rd / "bookmarks" / "bm1.bookmark.json", {"name": "bm1", "displayName": "Email only",
                                                "explorationState": {"activeSection": "overview"}})
+
+
+# ============================================================================ thin-report
+
+def thin():
+    """The campaign report as a thin report: live connection to a published model that is not in the package."""
+    base = ROOT / "thin-report"
+    if base.exists():
+        shutil.rmtree(base)
+    shutil.copytree(ROOT / "campaign-analytics" / "CampaignAnalytics.Report", base / "CampaignThin.Report")
+    wj(base / "CampaignThin.Report" / "definition.pbir", {
+        "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definitionProperties/1.0.0/schema.json",
+        "version": "4.0", "datasetReference": {"byConnection": {
+            "connectionString": "Data Source=powerbi://api.powerbi.example/v1.0/myorg/Example;Initial Catalog=CampaignAnalytics",
+            "pbiModelDatabaseName": "00000000-0000-0000-0000-000000000000"}}})
+    wj(base / "CampaignThin.pbip", {"version": "1.0", "artifacts": [{"report": {"path": "CampaignThin.Report"}}]})
 
 
 # ============================================================================ legacy-sales
@@ -665,5 +691,6 @@ def legacy():
 
 if __name__ == "__main__":
     campaign()
+    thin()
     legacy()
     print("examples written to", ROOT)

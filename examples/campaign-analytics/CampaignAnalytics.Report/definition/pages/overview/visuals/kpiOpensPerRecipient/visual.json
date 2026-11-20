@@ -1,0 +1,56 @@
+{
+  "name": "kpiOpensPerRecipient",
+  "position": {
+    "x": 460,
+    "y": 80,
+    "z": 0,
+    "width": 180,
+    "height": 120
+  },
+  "visual": {
+    "visualType": "card",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "Opens per Recipient"
+                }
+              },
+              "queryRef": "q"
+            }
+          ]
+        }
+      }
+    },
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            },
+            "text": {
+              "expr": {
+                "Literal": {
+                  "Value": "'Opens per recipient'"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

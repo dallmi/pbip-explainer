@@ -1,0 +1,78 @@
+{
+  "name": "byChannel",
+  "position": {
+    "x": 840,
+    "y": 220,
+    "z": 0,
+    "width": 420,
+    "height": 300
+  },
+  "visual": {
+    "visualType": "clusteredBarChart",
+    "query": {
+      "queryState": {
+        "Category": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Campaign"
+                    }
+                  },
+                  "Property": "Channel"
+                }
+              },
+              "queryRef": "q"
+            }
+          ]
+        },
+        "Y": {
+          "projections": [
+            {
+              "field": {
+                "Aggregation": {
+                  "Expression": {
+                    "Column": {
+                      "Expression": {
+                        "SourceRef": {
+                          "Entity": "Engagement"
+                        }
+                      },
+                      "Property": "Clicks"
+                    }
+                  },
+                  "Function": 0
+                }
+              },
+              "queryRef": "q"
+            }
+          ]
+        }
+      }
+    },
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            },
+            "text": {
+              "expr": {
+                "Literal": {
+                  "Value": "'Clicks by channel'"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

@@ -71,7 +71,7 @@ class AppTests(unittest.TestCase):
         self.assertEqual(meta["status"], "done")
         self.assertEqual(meta["title"], "CampaignAnalytics")
         self.assertEqual(meta["stats"]["measures"], 10)
-        self.assertTrue(any(f["code"] == "broken-visual-reference" for f in meta["findings"]))
+        self.assertTrue(any(f["code"] == "unresolved-report-reference" for f in meta["findings"]))
         # docs are served, the HTML carries its own restrictive CSP
         st, h, html = self.req("GET", f"/runs/{run_id}/{meta['files']['html']}")
         self.assertEqual(st, 200)

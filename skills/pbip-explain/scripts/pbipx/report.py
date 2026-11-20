@@ -283,6 +283,7 @@ def load_pbir(folder: Path, name: str) -> dict:
     out["filters"] = parse_filters((rep.get("filterConfig") or {}).get("filters"), "report")
     out["customVisuals"] = rep.get("publicCustomVisuals") or []
     out["settings"] = rep.get("settings") or {}
+    out["reportMeasures"] = parse_extensions(_read_json(d / "reportExtensions.json"))
     pages_meta = _read_json(d / "pages" / "pages.json") or {}
     order = pages_meta.get("pageOrder") or []
     out["activePage"] = pages_meta.get("activePageName")
@@ -380,10 +381,12 @@ def load_legacy(folder: Path, name: str) -> dict:
     rep = _read_json(folder / "report.json") or {}
     out = _empty(name, "legacy")
     cfg = _jload(rep.get("config"))
+    out_ext = parse_extensions({"entities": [e for me in (cfg.get("modelExtensions") or []) for e in (me.get("entities") or [])]})
     tc = cfg.get("themeCollection") or {}
     out["theme"] = {"base": (tc.get("baseTheme") or {}).get("name"), "custom": (tc.get("customTheme") or {}).get("name")}
     out["filters"] = parse_filters(_jload(rep.get("filters")), "report")
     out["customVisuals"] = rep.get("publicCustomVisuals") or []
+    out["reportMeasures"] = out_ext
     for b in cfg.get("bookmarks", []) or []:
         out["bookmarks"].append({"name": b.get("name"), "displayName": b.get("displayName"),
                                  "page": (b.get("explorationState") or {}).get("activeSection")})
@@ -449,9 +452,72 @@ def _legacy_visual(vc: dict) -> dict:
 
 # ------------------------------------------------------------------------ entry
 
+def parse_extensions(ext) -> List[dict]:
+    """Report-level measures (PBIR reportExtensions.json / legacy config.modelExtensions)."""
+    out = []
+    for ent in (ext or {}).get("entities", []) or []:
+        for m in ent.get("measures", []) or []:
+            expr = m.get("expression")
+            if isinstance(expr, list):
+                expr = "\n".join(expr)
+            out.append({"table": ent.get("name") or ent.get("extends"), "name": m.get("name"), "expression": expr,
+                        "dataType": m.get("dataType"), "formatString": m.get("formatString"),
+                        "displayFolder": m.get("displayFolder"), "description": m.get("description")})
+    return [m for m in out if m.get("name")]
+
+
+def observed_model(rep: dict) -> dict:
+    """What a report uses from a semantic model that is not in the package (live connection).
+
+    Reconstructed from every field reference in report, page and visual filters, drill-through and visuals."""
+    rms = {(m["name"] or "").lower() for m in rep.get("reportMeasures", [])}
+    tables: Dict[str, Dict[str, dict]] = {}
+
+    def add(f: dict, page: Optional[str]):
+        if not f or not f.get("name"):
+            return
+        if f["kind"] == "measure" and f["name"].lower() in rms:
+            f["status"] = "reportMeasure"
+            return
+        f["status"] = "observedExternal"
+        t = tables.setdefault(f.get("table") or "?", {"columns": {}, "measures": {}, "hierarchies": {}})
+        bucket = "measures" if f["kind"] == "measure" else "hierarchies" if f["kind"] == "hierarchyLevel" else "columns"
+        key = f"{f.get('hierarchy')}.{f['name']}" if bucket == "hierarchies" else f["name"]
+        e = t[bucket].setdefault(key, {"name": key, "pages": set(), "aggregations": set()})
+        if page:
+            e["pages"].add(page)
+        if f.get("aggregation"):
+            e["aggregations"].add(f["aggregation"])
+
+    for fl in rep["filters"]:
+        add(fl.get("field"), None)
+    for p in rep["pages"]:
+        for fl in p["filters"]:
+            add(fl.get("field"), p["displayName"])
+        for f in p.get("drillthroughFields", []):
+            add(f, p["displayName"])
+        for v in p["visuals"]:
+            for f in v["fields"]:
+                add(f, p["displayName"])
+            for fl in v["filters"]:
+                add(fl.get("field"), p["displayName"])
+    out = []
+    for tn in sorted(tables, key=str.lower):
+        t = tables[tn]
+        conv = lambda d: [{"name": e["name"], "pages": sorted(e["pages"]), "aggregations": sorted(e["aggregations"])}  # noqa: E731
+                          for e in sorted(d.values(), key=lambda e: e["name"].lower())]
+        out.append({"name": tn, "columns": conv(t["columns"]), "measures": conv(t["measures"]),
+                    "hierarchies": conv(t["hierarchies"])})
+    return {"tables": out,
+            "counts": {"tables": len(out), "columns": sum(len(t["columns"]) for t in out),
+                       "measures": sum(len(t["measures"]) for t in out)},
+            "note": "Reconstructed from the fields this report uses. The model itself is not in the package, so "
+                    "DAX, relationships and unused objects of the model are unknown."}
+
+
 def _empty(name: str, fmt: str) -> dict:
     return {"name": name, "format": fmt, "semanticModelRef": None, "theme": {}, "filters": [],
-            "pages": [], "bookmarks": [], "customVisuals": [], "settings": {}, "activePage": None}
+            "pages": [], "bookmarks": [], "customVisuals": [], "settings": {}, "activePage": None, "reportMeasures": []}
 
 
 def load_report(folder: Path) -> Optional[dict]:

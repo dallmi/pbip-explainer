@@ -4,6 +4,8 @@ Hand over a Power BI project as a zip, get back everything needed to understand 
 
 - a **knowledge pack** – structured facts an agent can answer any question from (`model.json`, CSVs, `agent-brief.md`)
 - **documentation** for business users and the tech team – one offline HTML file and the same content as Markdown, with an interactive data model diagram, data glossary, page-by-page description, DAX catalog with dependencies, lineage from source to visual, Power Query sources and a model health check
+- **safe change impact** for every measure and column: which measures, visuals and pages change if it changes, direct and indirect, with the dependency path to each visual (e.g. `Engagement[Opens] → [Total Opens] → [Open Rate] → Card 'Open rate'`)
+- **honest reference status**: report fields are *verified*, *report measure* (defined in the report), *unresolved* (not proven broken) or *observed external* (live connection); thin reports get an *observed model* reconstructed from what they use
 - a **query CLI** for the questions that come up when nobody remembers how the semantic layer works: how is this measure calculated, how are these tables joined, what breaks if I change this column, what is unused
 - a **desktop app** (local web UI) that does all of this by drag and drop, for one or many models
 - an **analysis package** for a SharePoint folder, so a Microsoft 365 Copilot agent can answer questions about all your semantic models

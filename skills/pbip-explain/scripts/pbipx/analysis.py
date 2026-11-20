@@ -143,7 +143,34 @@ def analyse(model: dict, reports: List[dict]) -> dict:
     broken: List[dict] = []
     report_roots: Set[str] = set()
 
+    report_measures: Dict[str, dict] = {}
+    for rep_ in reports:
+        for rm in rep_.get("reportMeasures", []):
+            report_measures[rm["name"].lower()] = rm
+    for rm in report_measures.values():
+        refs = dax.analyse(rm.get("expression"), cat, None)
+        # report measures may use each other: those show up as unresolved [Name]
+        rest = []
+        for u in refs["unresolved"]:
+            other = report_measures.get(u.strip("[]").lower()) if u.startswith("[") else None
+            if other:
+                link(f"reportMeasure:{rm['name']}", f"reportMeasure:{other['name']}", "reportMeasure",
+                     f"report measure [{rm['name']}]")
+            else:
+                rest.append(u)
+        refs["unresolved"] = rest
+        rm["dependsOn"] = refs
+        for x in refs_to_ids(refs):
+            link(f"reportMeasure:{rm['name']}", x, "reportMeasure", f"report measure [{rm['name']}]")
+
     def field_id(f: dict) -> Optional[str]:
+        fid = _model_field_id(f)
+        if fid:
+            return fid
+        rm = report_measures.get((f.get("name") or "").lower())
+        return f"reportMeasure:{rm['name']}" if rm and f["kind"] != "column" else None
+
+    def _model_field_id(f: dict) -> Optional[str]:
         tname, name = f.get("table"), f.get("name")
         if f["kind"] == "measure":
             m = cat.measure(name or "")
@@ -168,6 +195,7 @@ def analyse(model: dict, reports: List[dict]) -> dict:
             fid = field_id(f)
             f["id"] = fid
             f["exists"] = fid is not None
+            f["status"] = ("reportMeasure" if fid.startswith("reportMeasure:") else "verified") if fid else "unresolved"
             if fid:
                 usage[fid].append({"by": src, "kind": kind, "label": label, "role": f.get("role"), **where})
                 deps[src].add(fid)
@@ -175,8 +203,10 @@ def analyse(model: dict, reports: List[dict]) -> dict:
                 if f.get("implicitMeasure"):
                     f["implicit"] = True
             else:
-                broken.append({"where": label, "field": f"{f.get('table')}[{f.get('name')}]", "kind": f["kind"]})
+                broken.append({"where": label, "field": f"{f.get('table')}[{f.get('name')}]", "kind": f["kind"],
+                               "status": "unresolved", **where})
 
+    vinfo: Dict[str, dict] = {}
     for rep in reports:
         rname = rep["name"]
         use_fields([fl["field"] for fl in rep["filters"] if fl.get("field")], f"report:{rname}", "reportFilter",
@@ -192,6 +222,7 @@ def analyse(model: dict, reports: List[dict]) -> dict:
                 lbl = f"{v['typeLabel']} '{v['title'] or v['name']}' on '{p['displayName']}'"
                 where = {"report": rname, "page": p["displayName"], "visual": v["name"], "visualTitle": v["title"],
                          "visualType": v["typeLabel"]}
+                vinfo[vid] = dict(where)
                 use_fields(v["fields"], vid, "visual", lbl, where)
                 use_fields([fl["field"] for fl in v["filters"] if fl.get("field")], vid, "visualFilter",
                            f"visual filter of {lbl}", where)
@@ -244,6 +275,109 @@ def analyse(model: dict, reports: List[dict]) -> dict:
             c["usedInReport"] = key in reachable
             c["referenced"] = bool(c["usedBy"])
 
+    # ---------------------------------------------------------------- change impact
+    rev: Dict[str, Set[str]] = defaultdict(set)
+    for s_, ds in deps.items():
+        for d_ in ds:
+            rev[d_].add(s_)
+    rel_label = {r["id"]: f"relationship {r['fromTable']}[{r['fromColumn']}] → {r['toTable']}[{r['toColumn']}]"
+                 for r in model["relationships"]}
+
+    def label(x: str) -> str:
+        if x.startswith("measure:"):
+            return f"[{x[8:]}]"
+        if x.startswith("reportMeasure:"):
+            return f"[{x[14:]}] (report measure)"
+        if x.startswith("column:"):
+            return x[7:]
+        if x.startswith("visual:"):
+            vi = vinfo.get(x) or {}
+            return f"{vi.get('visualType', 'visual')} '{vi.get('visualTitle') or vi.get('visual')}' on page '{vi.get('page')}'"
+        if x.startswith("page:"):
+            return f"page '{x[5:]}'"
+        if x.startswith("report:"):
+            return f"report-level filter of {x[7:]}"
+        if x.startswith("relationship:"):
+            return rel_label.get(x, x)
+        if x.startswith("calcItem:"):
+            return "calculation item " + x[9:]
+        if x.startswith("role:"):
+            return "RLS role " + x[5:]
+        if x.startswith("hierarchy:"):
+            return "hierarchy " + x[10:]
+        if x.startswith("table:"):
+            return "calculated / parameter table " + x[6:]
+        return x
+
+    def impact(start: str, cap: int = 150) -> dict:
+        parent: Dict[str, Optional[str]] = {start: None}
+        order: List[str] = []
+        dq = deque([start])
+        while dq:
+            x = dq.popleft()
+            for y in sorted(rev.get(x, ())):
+                if y not in parent:
+                    parent[y] = x
+                    order.append(y)
+                    dq.append(y)
+
+        def path(n: str) -> List[str]:
+            p: List[str] = []
+            cur: Optional[str] = n
+            while cur is not None:
+                p.append(label(cur))
+                cur = parent[cur]
+            return list(reversed(p))
+
+        res = {"measures": [], "reportMeasures": [], "columns": [], "direct": [], "indirect": [],
+               "filters": [], "pages": set(), "other": []}
+        for n in order:
+            if n.startswith("measure:"):
+                res["measures"].append(n[8:])
+            elif n.startswith("reportMeasure:"):
+                res["reportMeasures"].append(n[14:])
+            elif n.startswith("column:"):
+                res["columns"].append(n[7:])
+            elif n.startswith("visual:"):
+                vi = vinfo.get(n) or {}
+                e = {"page": vi.get("page"), "visual": vi.get("visual"), "title": vi.get("visualTitle"),
+                     "type": vi.get("visualType")}
+                res["pages"].add(vi.get("page"))
+                if parent[n] == start:
+                    res["direct"].append(e)
+                else:
+                    e["path"] = path(n)
+                    res["indirect"].append(e)
+            elif n.startswith(("page:", "report:")):
+                if not (parent[n] or "").startswith("visual:"):
+                    res["filters"].append({"where": label(n), "path": path(n)})
+                    if n.startswith("page:"):
+                        res["pages"].add(n[5:])
+            else:
+                res["other"].append(label(n))
+        out = {
+            "measures": res["measures"], "reportMeasures": res["reportMeasures"],
+            "columns": res["columns"],
+            "visuals": {"direct": res["direct"][:cap], "indirect": res["indirect"][:cap]},
+            "filters": res["filters"][:cap], "pages": sorted(p for p in res["pages"] if p), "other": res["other"],
+            "counts": {"measures": len(res["measures"]) + len(res["reportMeasures"]),
+                       "visuals": len(res["direct"]) + len(res["indirect"]),
+                       "direct": len(res["direct"]), "indirect": len(res["indirect"]),
+                       "pages": len([p for p in res["pages"] if p]), "filters": len(res["filters"]),
+                       "other": len(res["other"])},
+        }
+        out["usage"] = ("direct" if res["direct"] or res["filters"] and any(len(f["path"]) == 2 for f in res["filters"])
+                        else "indirect" if res["indirect"] or res["filters"] else "none")
+        return out
+
+    for t in model["tables"]:
+        for m in t["measures"]:
+            m["impact"] = impact(mid(m["name"]))
+        for c in t["columns"]:
+            c["impact"] = impact(cid(t["name"], c["name"]))
+    for rm in report_measures.values():
+        rm["impact"] = impact(f"reportMeasure:{rm['name']}")
+
     # ---------------------------------------------------------------- table roles
     _classify(model)
 
@@ -270,7 +404,8 @@ def analyse(model: dict, reports: List[dict]) -> dict:
     findings = _findings(model, reports, broken, unresolved)
     stats = _stats(model, reports)
     return {
-        "findings": findings, "brokenReferences": broken, "unresolvedDaxReferences": unresolved,
+        "findings": findings, "unresolvedReportReferences": broken, "unresolvedDaxReferences": unresolved,
+        "referenceStatus": _ref_status(reports),
         "stats": stats,
         "unused": {
             "measures": sorted(m["name"] for m in measures.values() if not m["usedInReport"]),
@@ -281,6 +416,21 @@ def analyse(model: dict, reports: List[dict]) -> dict:
         },
         "dependencies": {k: sorted(v) for k, v in deps.items()},
     }
+
+
+def _ref_status(reports: List[dict]) -> Dict[str, int]:
+    counts: Dict[str, int] = defaultdict(int)
+    for rep in reports:
+        for fl in rep["filters"]:
+            if fl.get("field"):
+                counts[fl["field"].get("status", "unknown")] += 1
+        for p in rep["pages"]:
+            for f in [fl["field"] for fl in p["filters"] if fl.get("field")] + p.get("drillthroughFields", []):
+                counts[f.get("status", "unknown")] += 1
+            for v in p["visuals"]:
+                for f in v["fields"] + [fl["field"] for fl in v["filters"] if fl.get("field")]:
+                    counts[f.get("status", "unknown")] += 1
+    return dict(counts)
 
 
 def _measure_table(measures: dict, name: str) -> Optional[str]:
@@ -474,10 +624,12 @@ def _findings(model: dict, reports: List[dict], broken: list, unresolved: list) 
                       "Mark it as date table so time-intelligence functions behave predictably."))
 
     if broken:
-        out.append(_f("error", "broken-visual-reference",
-                      f"{len(broken)} report field reference(s) point to objects missing from the model.",
+        out.append(_f("warning", "unresolved-report-reference",
+                      f"{len(broken)} report field reference(s) could not be matched to the semantic model or to "
+                      "report-level measures.",
                       [f"{b['field']} in {b['where']}" for b in broken[:20]],
-                      "These visuals show an error in Power BI. Fix or remove the field."))
+                      "Status 'unresolved', not proven broken. If the packaged model is the one the report uses, "
+                      "these visuals show an error in Power BI: check for renamed or deleted fields."))
     ur = [u for u in unresolved if not u["reference"].startswith("[")]
     if ur:
         out.append(_f("warning", "unresolved-dax-reference",

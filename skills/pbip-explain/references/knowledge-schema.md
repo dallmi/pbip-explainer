@@ -39,7 +39,9 @@
 
 ### Measure
 
-`name, table, expression, formatString, formatStringExpression, displayFolder, description, isHidden, autoDescription, complexity{lines, functionCalls, nesting, level, usesIterators, usesTimeIntelligence, usesFilterModifiers, usesCalculate}, dependsOn, lineage, usedBy[], usedInReport`
+`name, table, expression, formatString, formatStringExpression, displayFolder, description, isHidden, autoDescription, complexity{lines, functionCalls, nesting, level, usesIterators, usesTimeIntelligence, usesFilterModifiers, usesCalculate}, dependsOn, lineage, usedBy[], usedInReport, impact`
+
+`impact` (also on every column and report-level measure) = everything that changes if this object changes: `measures[]`, `reportMeasures[]`, `columns[]` (calculated columns and columns sorted by this one), `visuals{direct[], indirect[{page, visual, title, type, path[]}]}` (`path` runs from the object through the dependent measures to the visual), `filters[{where, path}]`, `pages[]`, `other[]` (relationships, RLS roles, calculation items, hierarchies, parameter tables), `counts{measures, visuals, direct, indirect, pages, filters, other}`, `usage` (direct | indirect | none). Lists are capped at 150 entries; `counts` are complete.
 
 - `dependsOn` = direct references: `measures[]`, `columns[[table, column]]`, `tables[]`, `functions[]`, `userelationship[[[t,c],[t,c]]]`, `unresolved[]` (e.g. columns of virtual tables like `[@hc]`, or broken references), `variables[]`.
 - `lineage` = transitive closure: every measure, column and table the measure ultimately reads.
@@ -47,21 +49,21 @@
 
 ### Analysis
 
-`stats{}`, `findings[{severity: error|warning|info, code, message, objects[], advice}]`, `brokenReferences[]`, `unresolvedDaxReferences[]`, `unused{measures[], columns[], note}`, `dependencies{objectId: [objectIds]}`.
+`stats{}`, `findings[{severity: error|warning|info, code, message, objects[], advice}]`, `unresolvedReportReferences[]`, `referenceStatus{verified, reportMeasure, unresolved}`, `unresolvedDaxReferences[]`, `unused{measures[], columns[], note}`, `dependencies{objectId: [objectIds]}`.
 
 Object ids: `table:T`, `column:T[C]`, `measure:M`, `calcItem:T[I]`, `hierarchy:T[H]`, `role:R`, `expression:Q`, `relationship:<id>`, `page:P`, `visual:P/V`, `report:R`.
 
-Finding codes: `broken-visual-reference`, `relationship-missing-table`, `bidirectional-relationship`, `many-to-many`, `inactive-relationship-used`, `inactive-relationship-unused`, `relationship-type-mismatch`, `auto-date-time`, `date-table-not-marked`, `unresolved-dax-reference`, `implicit-measures`, `summarize-keys`, `missing-descriptions`, `unused-measures`, `many-calculated-columns`, `local-file-source`, `row-level-security`, `hidden-pages`, `custom-visuals`.
+Finding codes: `unresolved-report-reference`, `relationship-missing-table`, `bidirectional-relationship`, `many-to-many`, `inactive-relationship-used`, `inactive-relationship-unused`, `relationship-type-mismatch`, `auto-date-time`, `date-table-not-marked`, `unresolved-dax-reference`, `implicit-measures`, `summarize-keys`, `missing-descriptions`, `unused-measures`, `many-calculated-columns`, `local-file-source`, `row-level-security`, `hidden-pages`, `custom-visuals`.
 
 ## Report
 
-`name, format (pbir | legacy), folder, semanticModel, semanticModelRef{type: byPath|byConnection, ...}, theme{base, custom}, filters[], pages[], bookmarks[{name, displayName, page}], customVisuals[], settings, activePage`
+`name, format (pbir | legacy), folder, semanticModel, reportMeasures[{table, name, expression, dataType, formatString, dependsOn, impact}], observedModel{tables[{name, columns[], measures[], hierarchies[] each {name, pages, aggregations}}], counts, note} (only for live-connection reports), semanticModelRef{type: byPath|byConnection, ...}, theme{base, custom}, filters[], pages[], bookmarks[{name, displayName, page}], customVisuals[], settings, activePage`
 
 Page: `name, displayName, ordinal, width, height, displayOption, hidden, pageType (Standard | Drillthrough | Tooltip), drillthroughFields[], filters[], visuals[], lineage{measures, columns, tables}`
 
 Visual: `name, type, typeLabel, title, text (text boxes), position{x,y,z,width,height}, hidden, group, decorative, fields[], filters[], tables[]`
 
-Field: `kind (column | measure | hierarchyLevel), table, name, role (projection bucket such as Values, Category, Y, Rows, Series, Tooltips; or formatting, sort, drillthrough), aggregation + implicitMeasure (column aggregated in the visual), variation (auto date/time level), hierarchy, queryRef, displayName, id, exists`
+Field: `status (verified | reportMeasure | unresolved | observedExternal), kind (column | measure | hierarchyLevel), table, name, role (projection bucket such as Values, Category, Y, Rows, Series, Tooltips; or formatting, sort, drillthrough), aggregation + implicitMeasure (column aggregated in the visual), variation (auto date/time level), hierarchy, queryRef, displayName, id, exists`
 
 Filter: `scope (report | page | visual), type, field, condition (readable, e.g. "Campaign[Channel] in (Email; Intranet)"), isActive, hidden, locked`
 

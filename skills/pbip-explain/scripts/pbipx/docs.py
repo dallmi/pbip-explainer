@@ -150,6 +150,51 @@ def _src_summary(t: dict) -> str:
     return out
 
 
+def impact_summary(imp: Optional[dict], name: str) -> str:
+    """One sentence: what changing an object touches in the packaged report(s)."""
+    if not imp:
+        return ""
+    c = imp["counts"]
+    if not (c["measures"] or c["visuals"] or c["filters"] or c["other"]):
+        return f"Nothing in the packaged report(s) depends on {name}."
+    parts = []
+    if c["measures"]:
+        parts.append(f"{c['measures']} measure{'s' if c['measures'] != 1 else ''}")
+    if c["visuals"]:
+        parts.append(f"{c['visuals']} visual{'s' if c['visuals'] != 1 else ''} on {c['pages']} page{'s' if c['pages'] != 1 else ''} "
+                     f"({c['direct']} direct, {c['indirect']} indirect)")
+    if c["filters"]:
+        parts.append(f"{c['filters']} filter{'s' if c['filters'] != 1 else ''}")
+    if c["other"]:
+        parts.append(f"{c['other']} other object{'s' if c['other'] != 1 else ''} (relationships, security, hierarchies)")
+    return f"Changing {name} affects " + ", ".join(parts) + "."
+
+
+def _vis_label(e: dict) -> str:
+    return f"{e.get('type') or 'Visual'} '{e.get('title') or e.get('visual')}' on page '{e.get('page')}'"
+
+
+def impact_lines(imp: Optional[dict], limit: int = 40) -> List[str]:
+    """Readable lines: direct visuals, indirect visuals with the dependency path, filters, other objects."""
+    if not imp:
+        return []
+    out = []
+    for e in imp["visuals"]["direct"][:limit]:
+        out.append(f"Direct: {_vis_label(e)}")
+    for e in imp["visuals"]["indirect"][:limit]:
+        via = " → ".join(e.get("path", [])[1:-1])
+        out.append(f"Indirect: {_vis_label(e)}" + (f" via {via}" if via else ""))
+    for f in imp["filters"][:limit]:
+        via = " → ".join(f["path"][1:-1])
+        out.append(f"Filter: {f['where']}" + (f" via {via}" if via else ""))
+    for o in imp["other"][:limit]:
+        out.append(f"Also: {o}")
+    hidden = imp["counts"]["visuals"] - min(len(imp["visuals"]["direct"]), limit) - min(len(imp["visuals"]["indirect"]), limit)
+    if hidden > 0:
+        out.append(f"… and {hidden} more visual(s)")
+    return out
+
+
 def glossary_entries(ctx: Ctx) -> List[dict]:
     items: List[dict] = []
     for m in ctx.models:
@@ -230,6 +275,27 @@ def render_md(ctx: Ctx) -> str:
     for r in ctx.reports:
         if r["filters"]:
             a("**Report-level filters (apply to every page):** " + "; ".join(_filter_txt(f) for f in r["filters"]))
+            a("")
+        if r.get("reportMeasures"):
+            a(f"**Report-level measures** (defined in the report, not in the model):")
+            a("")
+            for rm in r["reportMeasures"]:
+                a(f"- [{rm['name']}] on {rm.get('table')}: `{' '.join((rm.get('expression') or '').split())}` — {impact_summary(rm.get('impact'), '[' + rm['name'] + ']')}")
+            a("")
+        om = r.get("observedModel")
+        if om:
+            c = om["counts"]
+            a(f"### Observed model (live connection)")
+            a("")
+            a(f"The report uses a published semantic model that is not in the package. From its visuals and filters it uses "
+              f"{c['tables']} tables, {c['columns']} columns and {c['measures']} measures. {om['note']}")
+            a("")
+            a("| Table | Field | Kind | Used on pages |")
+            a("|---|---|---|---|")
+            for t in om["tables"]:
+                for kind, items in (("measure", t["measures"]), ("column", t["columns"]), ("hierarchy level", t["hierarchies"])):
+                    for e in items:
+                        a(f"| {_md(t['name'])} | {_md(e['name'])} | {kind} | {_md(', '.join(e['pages']) or 'report filter')} |")
             a("")
         for p in r["pages"]:
             tags = (["hidden"] if p["hidden"] else []) + ([p["pageType"]] if p["pageType"] != "Standard" else [])
@@ -416,12 +482,14 @@ def render_md(ctx: Ctx) -> str:
                         a("Activates relationships: " + ", ".join(f"{p[0][0]}[{p[0][1]}] ↔ {p[1][0]}[{p[1][1]}]" for p in dep["userelationship"]))
                     if me["lineage"]["columns"] and me["lineage"]["columns"] != [f"{x}[{y}]" for x, y in dep["columns"]]:
                         a("Ultimately reads: " + ", ".join(me["lineage"]["columns"]))
-                    used_m = [u["label"] for u in me["usedBy"] if u["kind"] == "measure"]
-                    used_v = sorted({f"{u.get('visualTitle') or u.get('visual')} ({u.get('page')})" for u in me["usedBy"] if u.get("page")})
-                    if used_m:
-                        a("Used by: " + ", ".join(sorted(set(used_m))))
-                    if used_v:
-                        a("Shown in: " + ", ".join(used_v))
+                    imp = me.get("impact")
+                    if imp:
+                        a("")
+                        a(f"**Change impact.** {impact_summary(imp, '[' + me['name'] + ']')}")
+                        if imp["measures"]:
+                            a("Dependent measures: " + ", ".join(f"[{x}]" for x in imp["measures"]))
+                        for line in impact_lines(imp, 25):
+                            a(f"- {line}")
                     a("")
 
     # Security / params / calc groups --------------------------------------------
@@ -677,6 +745,15 @@ details{margin:4px 0}
 summary{cursor:pointer;color:var(--g5);font-size:12.5px}
 .measure{border-top:1px solid var(--surface);padding:10px 0 4px}
 .measure h4{margin:0 0 4px}
+.impact{margin:10px 0 6px;border-left:3px solid var(--primary);padding:8px 14px;background:var(--row)}
+.impact.compact{border-left-width:2px;padding:6px 10px;margin:4px 0}
+.impact .ik{font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--primary);margin-bottom:2px}
+.impact p{margin:3px 0}
+.ilist{list-style:none;margin:6px 0 2px;font-size:12.5px}
+.ilist li{padding:3px 0;border-top:1px solid var(--g1)}
+.ilist .via{color:var(--g4);font-size:12px;margin-left:66px}
+.tag{display:inline-block;width:58px;margin-right:8px;font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.tag.d{color:var(--primary)}.tag.i{color:var(--g5)}.tag.f{color:#8C5B00}.tag.o{color:var(--g4)}
 .kv{display:grid;grid-template-columns:150px 1fr;gap:2px 12px;font-size:12.5px;margin:6px 0}
 .kv dt{color:var(--g4)}
 .pagegrid{position:relative;background:var(--page);border:1px solid var(--surface);margin:8px 0 12px}
@@ -808,6 +885,30 @@ def render_html(ctx: Ctx) -> str:
     for r in ctx.reports:
         if r["filters"]:
             h('<p><b>Report-level filters</b> (every page): ' + "; ".join(escape(_filter_txt(f)) for f in r["filters"]) + "</p>")
+        if r.get("reportMeasures"):
+            h(f'<div class="card"><h3>Report-level measures <span class="muted small">({len(r["reportMeasures"])}, defined in the report, not in the model)</span></h3>')
+            for rm in r["reportMeasures"]:
+                h(f'<h4>{escape(rm["name"])} <span class="muted small">on {escape(str(rm.get("table")))}</span></h4>'
+                  f'<pre>{highlight_dax(rm.get("expression") or "", ctx, measure_names)}</pre>')
+                h(impact_html(rm.get("impact"), f"[{rm['name']}]", ctx, compact=True))
+            h("</div>")
+        om = r.get("observedModel")
+        if om:
+            c = om["counts"]
+            h(f'<div class="card" id="{ctx.anchor("obs", r["name"])}"><h3>Observed model (live connection)</h3>')
+            ref = r.get("semanticModelRef") or {}
+            h(f'<p>This report connects to a published semantic model{(" <code>" + escape(str(ref.get("modelName"))) + "</code>") if ref.get("modelName") else ""} '
+              f'that is not in the package. From its visuals and filters it uses {c["tables"]} tables, {c["columns"]} columns and '
+              f'{c["measures"]} measures. {escape(om["note"])}</p>')
+            rows = []
+            for t in om["tables"]:
+                for kind, items in (("measure", t["measures"]), ("column", t["columns"]), ("hierarchy level", t["hierarchies"])):
+                    for e in items:
+                        agg = f' <span class="muted small">({escape(", ".join(e["aggregations"]))} in visual)</span>' if e["aggregations"] else ""
+                        rows.append(f"<tr><td>{escape(t['name'])}</td><td>{escape(e['name'])}{agg}</td><td>{kind}</td>"
+                                    f"<td class=\"small\">{escape(', '.join(e['pages']) or 'report filter')}</td></tr>")
+            h('<div class="tw"><table><thead><tr><th>Table</th><th>Field</th><th>Kind</th><th>Used on pages</th></tr></thead><tbody>'
+              + "".join(rows) + "</tbody></table></div></div>")
         for p in r["pages"]:
             pa = ctx.anchor("p", p["displayName"])
             nav.append((pa, p["displayName"], True))
@@ -967,6 +1068,10 @@ def render_html(ctx: Ctx) -> str:
                     calc = ""
                     if c["columnType"] == "calculated" and c.get("expression"):
                         calc = f'<details><summary>DAX</summary><pre>{highlight_dax(c["expression"], ctx, measure_names)}</pre></details>'
+                    ci = c.get("impact")
+                    if ci and (ci["counts"]["measures"] or ci["counts"]["visuals"] or ci["counts"]["other"] or ci["counts"]["filters"]):
+                        calc += (f'<details><summary>Change impact: {ci["counts"]["measures"]} measures · {ci["counts"]["visuals"]} visuals'
+                                 f'</summary>{impact_html(ci, t["name"] + "[" + c["name"] + "]", ctx, compact=True)}</details>')
                     h(f"<tr><td>{escape(c['name'])}{flags}{calc}</td><td>{escape(c.get('dataType') or '')}</td><td>{kind}{src}</td>"
                       f"<td><code>{escape(c.get('formatString') or '')}</code></td><td>{escape(c.get('sortByColumn') or '')}</td>"
                       f"<td class=\"small\">{escape(cd or '')}{_badge(cp) if cd else ''}</td>"
@@ -1028,11 +1133,9 @@ def render_html(ctx: Ctx) -> str:
                     used_m = sorted({u["by"][8:] for u in me["usedBy"] if u["kind"] == "measure"})
                     if used_m:
                         h("<dt>Used by measures</dt><dd>" + ", ".join(f'<a href="#{ctx.anchor("m", x)}">{escape(x)}</a>' for x in used_m) + "</dd>")
-                    vis = sorted({(u.get("page"), u.get("visualTitle") or u.get("visual") or u["kind"]) for u in me["usedBy"] if u.get("page")})
-                    if vis:
-                        h("<dt>Shown in</dt><dd class=\"small\">" + "<br>".join(
-                            f'<a href="#{ctx.anchor("p", pg)}">{escape(pg)}</a>: {escape(str(vt))}' for pg, vt in vis) + "</dd>")
-                    h("</dl></div>")
+                    h("</dl>")
+                    h(impact_html(me.get("impact"), f"[{me['name']}]", ctx))
+                    h("</div>")
     h("</section>")
 
     # security / params ---------------------------------------------------------
@@ -1157,21 +1260,57 @@ def render_html(ctx: Ctx) -> str:
             f'<script type="application/json" id="search-index">{idx_json}</script><script>{JS}</script></body></html>')
 
 
+def impact_html(imp: Optional[dict], name: str, ctx: "Ctx", compact: bool = False) -> str:
+    if not imp:
+        return ""
+    out = [f'<div class="impact{" compact" if compact else ""}">']
+    if not compact:
+        out.append('<div class="ik">Change impact</div>')
+    out.append(f"<p>{escape(impact_summary(imp, name))}</p>")
+    if imp["measures"]:
+        out.append('<p class="small"><b>Dependent measures:</b> ' + ", ".join(
+            f'<a href="#{ctx.anchor("m", x)}">{escape(x)}</a>' for x in imp["measures"]) + "</p>")
+    rows = []
+    for e in imp["visuals"]["direct"]:
+        rows.append(f'<li><span class="tag d">direct</span>{escape(_vis_label(e))}</li>')
+    for e in imp["visuals"]["indirect"]:
+        via = " → ".join(e.get("path", [])[1:-1])
+        rows.append(f'<li><span class="tag i">indirect</span>{escape(_vis_label(e))}'
+                    + (f'<div class="via">via {escape(via)}</div>' if via else "") + "</li>")
+    for f in imp["filters"]:
+        via = " → ".join(f["path"][1:-1])
+        rows.append(f'<li><span class="tag f">filter</span>{escape(f["where"])}' + (f'<div class="via">via {escape(via)}</div>' if via else "") + "</li>")
+    for o in imp["other"]:
+        rows.append(f'<li><span class="tag o">also</span>{escape(o)}</li>')
+    if rows:
+        out.append('<ul class="ilist">' + "".join(rows) + "</ul>")
+    out.append("</div>")
+    return "".join(out)
+
+
+STATUS_BADGE = {
+    "unresolved": '<span class="badge unused" title="Not found in the semantic model or the report-level measures. '
+                  'Not proven broken: check for renamed or deleted fields.">unresolved</span>',
+    "observedExternal": '<span class="badge" title="Used from a semantic model that is not in the package (live connection)">external model</span>',
+    "reportMeasure": '<span class="badge" title="Measure defined in the report, not in the semantic model">report measure</span>',
+}
+
+
 def _tlink(t: str, ctx: Ctx) -> str:
     return f'<a href="#{ctx.anchor("t", t)}">{escape(t)}</a>'
 
 
 def _link_field(f: dict, ctx: Ctx) -> str:
     label = escape(f.get("displayName") or f["name"])
-    if f["kind"] == "measure" and f.get("exists", True):
+    if f["kind"] == "measure" and f.get("status", "verified") == "verified":
         return f'<a href="#{ctx.anchor("m", f["name"])}">{label}</a>'
     txt = label
     if f.get("aggregation"):
         txt = f"{escape(f['aggregation'])} of {label} <span class=\"badge unused\" title=\"Implicit measure\">implicit</span>"
     if f.get("variation"):
         txt += f" ({escape(f['variation'])})"
-    if not f.get("exists", True):
-        txt += ' <span class="badge unused">missing in model</span>'
+    if f.get("status") in STATUS_BADGE:
+        txt += " " + STATUS_BADGE[f["status"]]
     tbl = f'<span class="muted">{_tlink(f["table"], ctx)}[</span>' if f.get("table") else ""
     close = '<span class="muted">]</span>' if f.get("table") else ""
     return tbl + txt + close

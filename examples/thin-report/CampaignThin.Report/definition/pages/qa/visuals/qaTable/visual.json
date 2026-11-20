@@ -1,0 +1,47 @@
+{
+  "name": "qaTable",
+  "position": {
+    "x": 20,
+    "y": 20,
+    "z": 0,
+    "width": 600,
+    "height": 400
+  },
+  "visual": {
+    "visualType": "tableEx",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Engagement"
+                    }
+                  },
+                  "Property": "Date"
+                }
+              },
+              "queryRef": "q"
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "Recipients"
+                }
+              },
+              "queryRef": "q"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

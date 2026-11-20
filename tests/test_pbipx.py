@@ -165,7 +165,7 @@ class EndToEndTests(unittest.TestCase):
 
     def test_findings(self):
         codes = {f["code"] for f in self.model["analysis"]["findings"]}
-        for c in ("broken-visual-reference", "bidirectional-relationship", "unresolved-dax-reference",
+        for c in ("unresolved-report-reference", "bidirectional-relationship", "unresolved-dax-reference",
                   "implicit-measures", "inactive-relationship-used", "unused-measures", "row-level-security",
                   "hidden-pages", "summarize-keys"):
             self.assertIn(c, codes)
@@ -201,12 +201,57 @@ class EndToEndTests(unittest.TestCase):
         self.assertIn(("hierarchyLevel", "Date", "Month"), {(f["kind"], f["table"], f["name"]) for f in trend["fields"]})
         self.assertIn("Campaign engagement overview", next(v for v in pages["Overview"]["visuals"] if v["type"] == "textbox")["text"])
 
+    def test_change_impact(self):
+        col = next(c for c in self.table("Engagement")["columns"] if c["name"] == "Opens")
+        imp = col["impact"]
+        self.assertEqual(imp["counts"]["direct"], 0)
+        card = next(e for e in imp["visuals"]["indirect"] if e["title"] == "Open rate")
+        self.assertEqual(card["path"][0], "Engagement[Opens]")
+        self.assertEqual(card["path"][1:3], ["[Total Opens]", "[Open Rate]"])
+        self.assertIn("Overview", imp["pages"])
+        tot = next(m for m in self.table("_Measures")["measures"] if m["name"] == "Total Opens")["impact"]
+        self.assertEqual({e["title"] for e in tot["visuals"]["direct"]}, {"Campaigns", "Opens over time"})
+        self.assertIn("Opens per recipient", {e["title"] for e in tot["visuals"]["indirect"]})   # via report measure
+        self.assertEqual(tot["usage"], "direct")
+        # a measure only shown through another measure counts as used, indirectly
+        rec = next(m for m in self.table("_Measures")["measures"] if m["name"] == "Recipients")
+        self.assertTrue(rec["usedInReport"])
+        key = next(c for c in self.table("Engagement")["columns"] if c["name"] == "Campaign Key")["impact"]
+        self.assertTrue(any("relationship" in o for o in key["other"]))
+
+    def test_reference_status(self):
+        st = self.model["analysis"]["referenceStatus"]
+        self.assertEqual(st.get("unresolved"), 1)                 # Campaign[Campaign Owner]
+        self.assertEqual(st.get("reportMeasure"), 1)              # Opens per Recipient
+        rep = self.pack["reports"][0]
+        self.assertEqual(rep["reportMeasures"][0]["name"], "Opens per Recipient")
+        f = next(f for p in rep["pages"] for v in p["visuals"] for f in v["fields"] if f["name"] == "Opens per Recipient")
+        self.assertEqual(f["status"], "reportMeasure")
+        sev = {x["code"]: x["severity"] for x in self.model["analysis"]["findings"]}
+        self.assertEqual(sev["unresolved-report-reference"], "warning")
+
+    def test_thin_report(self):
+        out = self.tmp / "thin"
+        extract(EXAMPLES / "thin-report", out)
+        pk = load_pack(out)
+        self.assertEqual(pk["semanticModels"], [])
+        om = pk["reports"][0]["observedModel"]
+        names = {t["name"]: t for t in om["tables"]}
+        self.assertIn("Open Rate", {m["name"] for m in names["_Measures"]["measures"]})
+        self.assertNotIn("Opens per Recipient", {m["name"] for m in names["_Measures"]["measures"]})   # report measure
+        self.assertIn("Campaign Owner", {c["name"] for c in names["Campaign"]["columns"]})            # not "broken" here
+        statuses = {f["status"] for p in pk["reports"][0]["pages"] for v in p["visuals"] for f in v["fields"]}
+        self.assertEqual(statuses, {"observedExternal", "reportMeasure"})
+        files = docs.build(pk, out / "docs")
+        self.assertIn("Observed model (live connection)", files[0].read_text(encoding="utf-8"))
+
     def test_queries(self):
         self.assertIn("USERELATIONSHIP", self.q.measure("Clicks by Send Date"))
         path = relationship_path(self.model, "Division", "Campaign")
         self.assertEqual([s["to"] for s in path], ["Engagement", "Campaign"])
         imp = self.q.impact("Engagement[Opens]")
         self.assertIn("Open Rate", imp)
+        self.assertIn("via [Total Opens] → [Open Rate]", imp)
         self.assertIn("Overview", imp)
 
     def test_legacy(self):
@@ -227,7 +272,7 @@ class EndToEndTests(unittest.TestCase):
         html = files[1].read_text(encoding="utf-8")
         md = files[0].read_text(encoding="utf-8")
         for s in ("Shows campaign engagement.", "Number of clicks on links", "AI-drafted", "CTOR", "erDiagram",
-                  "Engagement[Send Date]"):
+                  "Engagement[Send Date]", "**Change impact.**", "Report-level measures"):
             self.assertIn(s, md)
         self.assertIn('<svg xmlns="http://www.w3.org/2000/svg" class="erd"', html)
         # self-contained: no external scripts, stylesheets or fonts

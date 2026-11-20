@@ -193,39 +193,36 @@ class Q:
         return "\n".join(out)
 
     def impact(self, ref: str) -> str:
-        """Everything that (transitively) depends on an object - what breaks if it changes."""
-        if "[" in ref and not ref.strip().startswith("["):
-            t, c = self._column(ref)
-            start = f"column:{t['name']}[{c['name']}]"
-        elif ref.lower().strip("[]") in self.measures:
-            start = f"measure:{self.measures[ref.lower().strip('[]')]['name']}"
+        """What (transitively) depends on an object: measures, visuals (direct / indirect with path), filters."""
+        from .docs import impact_lines, impact_summary
+        r = ref.strip()
+        if "[" in r and not r.startswith("["):
+            t, c = self._column(r)
+            items = [(f"{t['name']}[{c['name']}]", c.get("impact"))]
+        elif r.lower().strip("[]") in self.measures:
+            m = self.measures[r.lower().strip("[]")]
+            items = [(f"[{m['name']}]", m.get("impact"))]
         else:
-            t = self._pick(self.tables, ref, "table")
-            start = f"table:{t['name']}"
-        rev = {}
-        for src, dsts in self.deps.items():
-            for d in dsts:
-                rev.setdefault(d, set()).add(src)
-        if start.startswith("table:"):
-            tn = start[6:]
-            seeds = {k for k in rev if k.startswith(f"column:{tn}[")} | {start}
-        else:
-            seeds = {start}
-        seen, todo = set(), list(seeds)
-        while todo:
-            x = todo.pop()
-            for y in rev.get(x, ()):
-                if y not in seen:
-                    seen.add(y)
-                    todo.append(y)
-        groups = {}
-        for x in sorted(seen):
-            groups.setdefault(x.split(":")[0], []).append(x.split(":", 1)[1])
-        out = [f"Impact of changing {start}:"]
-        for k in ("measure", "column", "calcItem", "relationship", "role", "visual", "page", "report", "table", "hierarchy"):
-            if k in groups:
-                out.append(f"  {k}s ({len(groups[k])}): " + ", ".join(groups[k]))
-        return "\n".join(out) if len(out) > 1 else f"Nothing in the package depends on {start}."
+            t = self._pick(self.tables, r, "table")
+            items = [(f"{t['name']}[{c['name']}]", c.get("impact")) for c in t["columns"]]
+            items = [i for i in items if i[1] and i[1]["counts"]["visuals"] + i[1]["counts"]["measures"] + i[1]["counts"]["other"]]
+            if not items:
+                return f"Nothing in the package depends on table {t['name']}."
+        out = []
+        for name, imp in items:
+            if not imp:
+                out.append(f"{name}: no impact data (re-run the extraction).")
+                continue
+            out.append(impact_summary(imp, name))
+            if imp["measures"]:
+                out.append("  Dependent measures: " + ", ".join(f"[{x}]" for x in imp["measures"]))
+            if imp["columns"]:
+                out.append("  Dependent columns (calculated, or sorted by it): " + ", ".join(imp["columns"]))
+            if imp["pages"]:
+                out.append("  Pages: " + ", ".join(imp["pages"]))
+            out.extend("  " + line for line in impact_lines(imp, 60 if len(items) == 1 else 8))
+            out.append("")
+        return "\n".join(out).rstrip()
 
     def unused(self) -> str:
         u = self.model["analysis"]["unused"]

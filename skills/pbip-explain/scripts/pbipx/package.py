@@ -28,7 +28,7 @@ from xml.sax.saxutils import escape as _xesc
 from . import __version__
 from . import portfolio
 from .analysis import ROLE_LABELS
-from .docs import Ctx, PROV_LABEL, _fieldname, _filter_txt, _pages, _split_fields, _src_summary, _tables_sorted, glossary_entries
+from .docs import Ctx, PROV_LABEL, impact_lines, impact_summary, _fieldname, _filter_txt, _pages, _split_fields, _src_summary, _tables_sorted, glossary_entries
 
 # ============================================================================ minimal .docx writer
 
@@ -275,6 +275,10 @@ def doc_overview(u: dict, ctx: Ctx, generated: str) -> Docx:
         d.heading(f"Report pages ({key})" if r["name"] == key else f"Report pages of {r['name']} ({key})", 1)
         if r["filters"]:
             d.p([("Report-level filters (every page): ", "b"), ("; ".join(_filter_txt(f) for f in r["filters"]), "")])
+        for rm in r.get("reportMeasures", []):
+            d.p([(f"Report-level measure [{rm['name']}] ({key}): ", "b"), ("defined in the report, not in the model.", "")])
+            d.code(rm.get("expression") or "")
+            d.small(impact_summary(rm.get("impact"), f"[{rm['name']}]"))
         for p in r["pages"]:
             tags = (["hidden"] if p["hidden"] else []) + ([p["pageType"]] if p["pageType"] != "Standard" else [])
             d.heading(f"Page '{p['displayName']}' — {r['name'] if r['name'] == key else r['name'] + ' (' + key + ')'}"
@@ -376,8 +380,11 @@ def doc_model(u: dict, ctx: Ctx, generated: str) -> Docx:
                 kind += f": {_short(c['expression'], 120)}"
             flags = ", ".join(x for x in ("hidden" if c["isHidden"] else "", "key" if c.get("isKey") else "",
                                           "unused" if not (c["referenced"] or c["usedInReport"]) else "") if x)
-            crow.append([c["name"], c.get("dataType") or "", kind, flags, _desc_runs(cd, cp, ""), ", ".join(_pages(c["usedBy"]))])
-        d.table(["Column", "Type", "Kind", "Flags", "Description", "Used on pages"], crow, [1600, 800, 2100, 900, 2400, 1400])
+            ci = c.get("impact") or {"counts": {"measures": 0, "visuals": 0, "pages": 0}, "pages": []}
+            impact_txt = (f"{ci['counts']['measures']} measures, {ci['counts']['visuals']} visuals"
+                          + (f" on {', '.join(ci['pages'])}" if ci["pages"] else "")) if (ci["counts"]["measures"] or ci["counts"]["visuals"]) else "none"
+            crow.append([c["name"], c.get("dataType") or "", kind, flags, _desc_runs(cd, cp, ""), impact_txt])
+        d.table(["Column", "Type", "Kind", "Flags", "Description", "Change impact"], crow, [1500, 800, 2000, 800, 2300, 1800])
         if t["source"].get("daxExpression"):
             d.p([("Table expression (DAX):", "b")])
             d.code(t["source"]["daxExpression"])
@@ -484,11 +491,14 @@ def doc_measures(u: dict, ctx: Ctx, generated: str) -> Docx:
                 items.append([("Ultimately reads: ", "b"), (", ".join(me["lineage"]["columns"]), "")])
             used_m = sorted({u2["by"][8:] for u2 in me["usedBy"] if u2["kind"] == "measure"})
             if used_m:
-                items.append([("Used by measures: ", "b"), (", ".join(f"[{x}]" for x in used_m), "")])
-            vis = sorted({f"{u2.get('page')}: {u2.get('visualTitle') or u2.get('visual')}" for u2 in me["usedBy"] if u2.get("page")})
-            if vis:
-                items.append([("Shown in: ", "b"), ("; ".join(vis), "")])
+                items.append([("Used directly by measures: ", "b"), (", ".join(f"[{x}]" for x in used_m), "")])
             d.bullets(items)
+            imp = me.get("impact")
+            if imp:
+                d.p([(f"Change impact of [{me['name']}] ({key}): ", "b"), (impact_summary(imp, f"[{me['name']}]"), "")])
+                if imp["measures"]:
+                    d.small("Dependent measures: " + ", ".join(f"[{x}]" for x in imp["measures"]))
+                d.bullets(impact_lines(imp, 20))
     return d
 
 

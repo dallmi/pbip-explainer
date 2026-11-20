@@ -11,7 +11,7 @@ from typing import List, Optional
 from . import KNOWLEDGE_SCHEMA_VERSION, __version__
 from .analysis import ROLE_LABELS, analyse
 from .model import load_semantic_model
-from .report import load_report
+from .report import load_report, observed_model
 from .unpack import discover, safe_extract
 
 
@@ -62,6 +62,9 @@ def extract(source: Path, out: Path) -> Path:
             target = models[0]
         r["semanticModel"] = target["name"] if target else None
 
+    for r in reports:
+        if not r.get("semanticModel"):
+            r["observedModel"] = observed_model(r)
     for m in models:
         linked = [r for r in reports if r.get("semanticModel") == m["name"]]
         m["analysis"] = analyse(m, linked)
@@ -224,7 +227,9 @@ def agent_brief(pack: dict) -> str:
             a("")
             for me in t["measures"]:
                 desc = me.get("description") or (("auto: " + me["autoDescription"]) if me.get("autoDescription") else "")
-                used = "" if me["usedInReport"] else " · not used in report"
+                ic = (me.get("impact") or {}).get("counts") or {}
+                used = (f" · impact: {ic.get('measures', 0)} measures, {ic.get('visuals', 0)} visuals "
+                        f"({ic.get('direct', 0)} direct)") if me["usedInReport"] else " · not used in report"
                 a(f"- [{me['name']}]{' (hidden)' if me['isHidden'] else ''}{used} = `{_short(me['expression'])}`"
                   f"{(' — ' + _short(desc, 140)) if desc else ''}")
             a("")
@@ -257,6 +262,21 @@ def agent_brief(pack: dict) -> str:
                 a(f"- **{f['severity']}** {f['message']}")
             a("")
     for rep in pack["reports"]:
+        om = rep.get("observedModel")
+        if om:
+            a(f"## Observed model of report {rep['name']} (live connection, model not in package)")
+            a("")
+            for t in om["tables"]:
+                cols = ", ".join(e["name"] for e in t["columns"])
+                meas = ", ".join(f"[{e['name']}]" for e in t["measures"])
+                a(f"- {t['name']}: " + "; ".join(x for x in (f"columns {cols}" if cols else "", f"measures {meas}" if meas else "") if x))
+            a("")
+        if rep.get("reportMeasures"):
+            a(f"## Report-level measures of {rep['name']}")
+            a("")
+            for rm in rep["reportMeasures"]:
+                a(f"- [{rm['name']}] = `{_short(rm.get('expression'))}`")
+            a("")
         a(f"## Report: {rep['name']}")
         a("")
         a(f"Format {rep['format'].upper()}, semantic model: {rep.get('semanticModel') or (rep.get('semanticModelRef') or {}).get('modelName') or 'unknown'}.")
