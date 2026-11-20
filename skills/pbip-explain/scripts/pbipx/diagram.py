@@ -17,7 +17,7 @@ FOOT_H = 20
 MAX_KEYS = 7
 
 STYLE = """
-.erd text{font-family:"Frutiger 45 Light",Frutiger,"Helvetica Neue",Arial,"Segoe UI",sans-serif;}
+.erd text{font-family:"Frutiger 45 Light",Frutiger,"Helvetica Neue",Arial,"Segoe UI",sans-serif;user-select:none;-webkit-user-select:none}
 .erd .box{fill:#fff;stroke:#9A978E;stroke-width:1}
 .erd .head{fill:#F2F0EA}
 .erd .n-fact .head{fill:#111111}.erd .n-fact .title{fill:#fff}
@@ -35,6 +35,8 @@ STYLE = """
 .erd .hit{stroke:transparent;stroke-width:10}
 .erd .lane{font-size:11px;fill:#7A7870;letter-spacing:.04em}
 .erd .node{cursor:pointer}
+.erd .node:focus{outline:none}
+.erd .node:focus-visible .box{stroke:#E60000;stroke-width:2}
 .erd.focus .node,.erd.focus .edge{opacity:.15}
 .erd.focus .node.on,.erd.focus .edge.on{opacity:1}
 .erd.focus .node.sel .box{stroke:#E60000;stroke-width:2}
@@ -222,7 +224,7 @@ def render(model: dict) -> Tuple[str, int, int]:
 
     W, H = int(math.ceil(width)), int(math.ceil(height))
     out = [f'<svg xmlns="http://www.w3.org/2000/svg" class="erd" viewBox="0 0 {W} {H}" width="{W}" height="{H}" '
-           f'role="img" aria-label="Data model diagram">', f"<style>{STYLE}</style>",
+           f'role="group" aria-label="Data model diagram">', f"<style>{STYLE}</style>",
            '<defs><marker id="ah" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">'
            '<path d="M0,0 L10,5 L0,10 z" class="arrow"/></marker></defs>']
     if loose and comps:
@@ -278,14 +280,15 @@ def render(model: dict) -> Tuple[str, int, int]:
     for b in boxes.values():
         x, y = b["x"] - b["w"] / 2, b["y"] - b["h"] / 2
         cls = ROLE_CLASS.get(b["role"] or "", "n-dim")
-        out.append(f'<g class="node {cls}" data-t="{escape(b["name"])}" transform="translate({x:.1f},{y:.1f})">')
+        out.append(f'<g class="node {cls}" data-t="{escape(b["name"])}" transform="translate({x:.1f},{y:.1f})" '
+                   f'tabindex="0" role="button" aria-label="Table {escape(b["name"])}">')
         out.append(f'<title>{escape(b["name"])} — {escape(str(b["role"]))}</title>')
         out.append(f'<rect class="box" width="{b["w"]:.0f}" height="{b["h"]:.0f}" rx="2"/>')
         out.append(f'<rect class="head" width="{b["w"]:.0f}" height="{HEAD_H}" rx="2"/>')
         out.append(f'<text class="title" x="10" y="18">{escape(b["name"])}</text>')
         for i, kname in enumerate(b["keys"]):
             out.append(f'<text class="key" x="10" y="{HEAD_H + 15 + i * ROW_H}">⚷ {escape(kname)}</text>')
-        foot = f'{b["cols"]} columns · {b["meas"]} measures' + (f' · +{b["more"]} keys' if b["more"] > 0 else "")
+        foot = (f'{b["cols"]} column{"" if b["cols"] == 1 else "s"} · {b["meas"]} measure{"" if b["meas"] == 1 else "s"}') + (f' · +{b["more"]} keys' if b["more"] > 0 else "")
         out.append(f'<text class="foot" x="10" y="{b["h"] - 7}">{foot}</text>')
         out.append("</g>")
     out.append("</g></svg>")

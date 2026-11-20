@@ -3,6 +3,7 @@
 import http.client
 import io
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -89,6 +90,20 @@ class AppTests(unittest.TestCase):
         st, _, body = self.req("POST", f"/api/runs/{run_id}/query", json.dumps({"command": "path", "args": ["Division", "Campaign"]}),
                                {"X-PBIPX": "1", "Content-Type": "application/json"})
         self.assertIn("Engagement", json.loads(body)["text"])
+        self.assertTrue(nm["top"] and nm["top"][0] in nm["measures"])     # suggestions: the measures most visuals depend on
+        # health: the app gets what the docs show (priority, reach), and counts visuals the same way
+        self.assertEqual(meta["stats"]["dataVisuals"], 9)
+        top = meta["findings"][0]
+        self.assertEqual((top["priority"], top["code"]), ("high", "bidirectional-relationship"))
+        self.assertIn("Affects 7 visuals on 1 page", top["impact"])
+        self.assertIn("high =", meta["priorityRule"])
+        st, _, body = self.req("POST", f"/api/runs/{run_id}/query", json.dumps({"command": "about", "args": ["open rate"]}),
+                               {"X-PBIPX": "1", "Content-Type": "application/json"})
+        ans = json.loads(body)["answer"]
+        self.assertEqual((ans["kind"], ans["title"], ans["anchor"]), ("Measure", "Open Rate", "m-open-rate"))
+        st, _, body = self.req("POST", f"/api/runs/{run_id}/query", json.dumps({"command": "about", "args": []}),
+                               {"X-PBIPX": "1", "Content-Type": "application/json"})
+        self.assertEqual(json.loads(body)["answer"]["kind"], "Search")    # empty input: guidance, not an error
         # enrichment upload rebuilds docs
         enr = {"measures": {"Total Clicks": {"description": "Clicks on links in the message."}}}
         st, _, body = self.req("POST", f"/api/runs/{run_id}/enrichment", json.dumps(enr), {"X-PBIPX": "1"})
@@ -137,9 +152,33 @@ class AppTests(unittest.TestCase):
         self.assertEqual(self.req("GET", "/api/runs", headers={"Host": "evil.example"})[0], 403)        # DNS rebinding
         self.assertEqual(self.req("GET", "/runs/..%2f..%2fapp/server.py")[0], 404)
         self.assertEqual(self.req("GET", "/runs/x/../../app/server.py")[0], 404)
-        st, h, _ = self.req("GET", "/")
+        st, h, page = self.req("GET", "/")
+        page = page.decode("utf-8") if isinstance(page, bytes) else page
+        self.assertIn('id="side-toggle"', page)                     # the list of analyses can be hidden to give the docs room
+        self.assertIn("embed=1", page)                              # the docs are told they sit inside the app
+        self.assertNotIn('id="r-kicker"', page)                     # the analysis header is two rows, no extra title line
+        # keyboard and navigation
+        for needle in ("runbtn",                  # analyses in the list are buttons, reachable with Tab
+                       'role="tabpanel"', "aria-selected", "ArrowRight",      # tabs follow the usual keyboard pattern
+                       "#/run/", "popstate",      # the open analysis is in the address: reload and Back work
+                       "home.status"):            # progress and errors take the top of the page
+            self.assertIn(needle, page, needle)
         self.assertEqual(st, 200)
         self.assertIn("frame-ancestors 'none'", h.get("Content-Security-Policy", ""))
+
+    def test_scripts_parse(self):
+        """A syntax error in the page script leaves the app blank. Checked with node when it is installed."""
+        node = shutil.which("node")
+        if not node:
+            self.skipTest("node is not installed")
+        from pbipx import docs
+        page = (ROOT / "app" / "static" / "index.html").read_text(encoding="utf-8")
+        scripts = {"app": "\n".join(re.findall(r"<script>(.*?)</script>", page, re.S)), "docs": docs.JS}
+        for name, code in scripts.items():
+            f = Path(tempfile.mkdtemp()) / f"{name}.js"
+            f.write_text(code, encoding="utf-8")
+            res = subprocess.run([node, "--check", str(f)], capture_output=True, text=True)
+            self.assertEqual(res.returncode, 0, f"{name}: {res.stderr[:400]}")
 
     def test_binds_localhost_only(self):
         self.assertEqual(self.httpd.server_address[0], "127.0.0.1")

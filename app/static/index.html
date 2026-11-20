@@ -26,18 +26,23 @@ a{color:inherit}
 .btn.primary{background:var(--black);border-color:var(--black);color:var(--white)}
 .btn.primary:hover{background:#2a2a2a}
 .btn:focus-visible,select:focus-visible,input:focus-visible,.tab:focus-visible,.drop:focus-visible,.chip:focus-visible{outline:2px solid var(--red);outline-offset:1px}
+#side-toggle{padding:6px 10px;margin-left:-8px}
 /* layout */
-.shell{flex:1;display:grid;grid-template-columns:240px minmax(0,1fr);min-height:0}
+.shell{flex:1;display:grid;grid-template-columns:240px minmax(0,1fr);min-height:0;position:relative}
+body.noside .shell{grid-template-columns:minmax(0,1fr)}
+body.noside aside{display:none}
 aside{border-right:1px solid var(--line);overflow:auto;padding:20px 14px;background:var(--white)}
 aside .kicker{color:var(--muted);margin:0 6px 10px;display:block}
 .runs{list-style:none}
-.runs li{padding:9px 8px;cursor:pointer;display:flex;gap:9px;align-items:flex-start;border-bottom:1px solid var(--row)}
+.runs li{display:flex;align-items:flex-start;border-bottom:1px solid var(--row)}
+.runbtn{flex:1;min-width:0;display:flex;gap:9px;align-items:flex-start;text-align:left;font:inherit;color:inherit;background:none;border:0;padding:9px 8px;cursor:pointer}
+.runbtn:focus-visible,.runs .del:focus-visible{outline:2px solid var(--red);outline-offset:-2px}
 .runs li:hover{background:var(--row)}
 .runs li.sel{background:var(--row);box-shadow:inset 3px 0 0 var(--red)}
 .runs .nm{color:var(--black);font-size:13px;font-weight:600;word-break:break-word;line-height:1.3}
 .runs .dt{color:var(--muted);font-size:11px}
-.runs .del{margin-left:auto;border:0;background:none;color:var(--muted);cursor:pointer;font-size:16px;line-height:1;padding:0 3px;visibility:hidden}
-.runs li:hover .del,.runs li.sel .del{visibility:visible}
+.runs .del{flex:none;width:24px;height:24px;margin:7px 4px 0 0;border:0;background:none;color:var(--muted);cursor:pointer;font-size:16px;line-height:1;visibility:hidden}
+.runs li:hover .del,.runs li.sel .del,.runs li:focus-within .del{visibility:visible}
 .runs .del:hover{color:var(--bad)}
 .dot{width:7px;height:7px;border-radius:50%;flex:none;margin-top:6px;background:var(--line)}
 .dot.done{background:var(--ok)}.dot.error{background:var(--bad)}.dot.running{background:var(--warn-line)}
@@ -67,7 +72,10 @@ main{min-width:0;min-height:0;display:flex;flex-direction:column}
 .drop .big{font-size:19px;font-weight:700;color:var(--black);margin-bottom:4px}
 .drop .hint{color:var(--muted);font-size:13px}
 .drop input{display:none}
-.prog{margin-top:22px;border:1px solid var(--line);padding:16px 20px}
+.prog{margin:0 0 22px;border:1px solid var(--line);padding:16px 20px}
+/* while something is being analysed, or failed, that is what the page is about: no landing text above it */
+.home.status .hero,.home.status .band,.home.status .ready{display:none}
+.home.status .dropwrap{padding-top:28px}
 .prog h3{font-size:16px;font-weight:700;color:var(--black)}
 .bar{height:3px;background:var(--soft);margin:10px 0 10px;overflow:hidden}
 .bar i{display:block;height:100%;width:0;background:var(--red);transition:width .2s}
@@ -93,22 +101,25 @@ main{min-width:0;min-height:0;display:flex;flex-direction:column}
 .card p.fix strong{color:var(--ink)}
 .ready{padding:28px 48px 48px;max-width:1080px}
 /* report view */
-.rhead{flex:none;padding:16px 28px 0;border-bottom:1px solid var(--line);background:var(--white)}
-.rrow{display:flex;align-items:flex-end;gap:18px;flex-wrap:wrap}
-.rtitle{font-size:28px;font-weight:700;color:var(--black);line-height:1.15;margin-top:4px}
-.rmeta{color:var(--muted);font-size:12.5px;margin-top:4px}
+.rhead{flex:none;padding:10px 28px 0;border-bottom:1px solid var(--line);background:var(--white)}
+.rrow{display:flex;align-items:center;gap:6px 18px;flex-wrap:wrap}
+.rid{display:flex;align-items:baseline;gap:12px;min-width:0;flex:1 1 300px}
+.rtitle{font-size:20px;font-weight:700;color:var(--black);line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:0 1 auto}
+.rmeta{color:var(--muted);font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:1 1 0}
+.rrow2{display:flex;align-items:flex-end;justify-content:space-between;gap:0 18px;flex-wrap:wrap;margin-top:6px}
+.export .btn{padding:5px 11px;font-size:12.5px}
 .export{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
 .export .lbl{font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin-right:4px}
-.enr{font-size:12.5px;color:var(--muted);margin-top:4px}
+.enr{font-size:12.5px;color:var(--muted);margin:0 0 9px}
 .enr a{color:var(--ink);text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:3px}
 .enr a:hover{text-decoration-color:var(--red)}
 .enr #enr-state{margin-right:6px}
 .enr .okmsg{color:var(--ok)}.enr .errmsg{color:var(--bad)}
-.tabs{display:flex;gap:26px;margin-top:14px}
-.tab{font:inherit;font-size:14px;font-weight:600;background:none;border:0;border-bottom:3px solid transparent;padding:6px 0 10px;color:var(--muted);cursor:pointer}
+.tabs{display:flex;gap:26px}
+.tab{font:inherit;font-size:14px;font-weight:600;background:none;border:0;border-bottom:3px solid transparent;padding:5px 0 8px;color:var(--muted);cursor:pointer}
 .tab:hover{color:var(--black)}
 .tab.on{color:var(--black);border-bottom-color:var(--red)}
-.tab .n{display:inline-block;min-width:18px;padding:0 5px;margin-left:6px;font-size:11px;background:var(--soft);color:var(--ink);border-radius:2px;text-align:center}
+.tab .n{display:inline-block;min-width:18px;padding:0 5px;margin-left:6px;font-size:11.5px;background:var(--soft);color:var(--ink);border-radius:2px;text-align:center}
 .pane{flex:1;min-height:0;display:none}
 .pane.on{display:block}
 #pane-docs iframe{width:100%;height:100%;border:0;display:block}
@@ -125,6 +136,15 @@ main{min-width:0;min-height:0;display:flex;flex-direction:column}
 .find>div:nth-child(2){font-weight:600;color:var(--black)}
 .find ul{margin:4px 0 0 18px;font-size:12.5px;color:var(--ink)}
 .find .adv{font-size:12.5px;color:var(--muted)}
+.find .imp{font-size:12.5px;color:var(--muted);margin-top:5px;font-weight:400}
+.find .imp b{font-size:11px;letter-spacing:.06em;text-transform:uppercase;margin-right:6px}
+.find .imp.hit{color:var(--ink)}.find .imp.hit b{color:var(--red)}
+.find li .lnk{font-size:12.5px}
+.hgrp{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink);margin:20px 0 6px}
+.hgrp.high{color:var(--red)}
+details.lowp{margin-top:20px;border-top:1px solid var(--soft);padding-top:8px}
+details.lowp>summary{cursor:pointer;font-weight:600;font-size:13.5px;padding:4px 0}
+.hrule{margin-top:18px;max-width:760px}
 h3.sec{font-size:22px;font-weight:700;color:var(--black);margin:4px 0 4px}
 p.secl{color:var(--muted);margin-bottom:14px}
 .ask{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
@@ -133,12 +153,37 @@ input[type=text]{flex:1;min-width:220px}
 .chips{margin:12px 0 4px;display:flex;gap:6px;flex-wrap:wrap}
 .chip{font:inherit;font-size:12.5px;border:1px solid var(--line);background:var(--white);color:var(--ink);padding:4px 10px;border-radius:2px;cursor:pointer}
 .chip:hover{border-color:var(--ink)}
-.dark{margin-top:16px;background:#141414;color:#EDEDED;border-radius:2px}
-.dark .dh{display:flex;align-items:center;justify-content:space-between;padding:9px 14px;border-bottom:1px solid #2c2c2c}
-.dark .dh .kicker{color:#FF4D4D}
-.dark .dh button{font:inherit;font-size:12px;font-weight:600;background:transparent;color:#EDEDED;border:1px solid #444;border-radius:2px;padding:3px 10px;cursor:pointer}
-.dark .dh button:hover{border-color:#EDEDED}
-.dark pre{font-family:var(--mono);font-size:12.5px;padding:14px 16px;white-space:pre-wrap;line-height:1.55;margin:0;color:#EDEDED;max-height:none}
+.ask input[type=text]{font-size:15px;padding:10px 12px;min-width:260px}
+.sugg{margin:14px 0 0;display:grid;grid-template-columns:170px 1fr;gap:8px 12px;align-items:baseline}
+.sugg .chips{margin:0}
+.sugg .lbl,.askmore .lbl{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.askmore{margin:16px 0 0;padding-top:12px;border-top:1px solid var(--soft);display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center;font-size:13.5px}
+.askmore select{padding:5px 8px;font-size:13px;max-width:220px}
+.askmore .btn{padding:5px 12px}
+.ans{margin-top:18px;border:1px solid var(--line);background:var(--white)}
+.ans>p{padding:16px 20px}
+.ans .ah{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;padding:16px 20px;border-bottom:1px solid var(--soft)}
+.ans h4{font-size:22px;font-weight:700;color:var(--black);margin:3px 0 2px;line-height:1.2;word-break:break-word}
+.ans .am{color:var(--muted);font-size:12.5px}
+.ans .aa{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.ans .aa .btn{padding:5px 10px;font-size:12.5px}
+.ans .ab{padding:4px 20px 14px}
+.blk{display:grid;grid-template-columns:190px 1fr;gap:4px 16px;padding:11px 0;border-top:1px solid var(--soft)}
+.blk:first-child{border-top:0}
+.blk .bl{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding-top:3px}
+.blk>div{min-width:0}
+.blk pre{font-family:var(--mono);font-size:12.5px;background:var(--row);border-left:2px solid var(--line);padding:10px 14px;white-space:pre-wrap;line-height:1.5;margin:0;overflow:auto}
+.al{list-style:none}
+.al li{padding:3px 0}
+.al ul{list-style:none;margin:2px 0 2px 6px;padding-left:14px;border-left:1px solid var(--line)}
+.al .sub{color:var(--muted);font-size:12.5px}
+.al .tg{display:inline-block;min-width:64px;font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.al .tg.direct{color:var(--red)}
+.lnk{font:inherit;background:none;border:0;padding:0;color:var(--ink);text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:2px;cursor:pointer;text-align:left}
+.lnk:hover{color:var(--red)}
+.lnk:focus-visible{outline:2px solid var(--red);outline-offset:1px}
+.bdg{display:inline-block;font-size:11.5px;font-weight:400;letter-spacing:0;padding:0 6px;border:1px solid var(--line);border-radius:2px;color:var(--ink);margin-left:8px;vertical-align:3px;white-space:nowrap}
+@media (max-width:800px){.blk,.sugg{grid-template-columns:1fr}.ans .ah{flex-direction:column}}
 .muted{color:var(--muted)}.small{font-size:12.5px}
 .empty{color:var(--muted);font-size:12.5px;padding:8px 6px}
 .hidden{display:none!important}
@@ -168,18 +213,19 @@ input[type=text]{flex:1;min-width:220px}
 .top h1,.top .sub{white-space:nowrap}
 @media (max-width:1100px){.top .sub,.top .sep{display:none}}
 @media (max-width:700px){.top .local,.top .ver{display:none}.top{padding:0 16px}.top #new{margin-left:auto}}
-@media (max-width:900px){.shell{grid-template-columns:1fr}aside{display:none}.hero,.dropwrap,.band,.ready{padding-left:16px;padding-right:16px}.hero h2{font-size:30px}.rhead{padding:12px 16px 0}.export{margin-left:0}.flow{grid-template-columns:1fr}.flow .st{margin-right:0}.flow .st::after{display:none}}
+@media (max-width:900px){.shell{grid-template-columns:1fr}aside,body.noside aside{display:none}body.sideover aside{display:block;position:absolute;z-index:5;top:0;bottom:0;left:0;width:270px;box-shadow:4px 0 16px rgba(0,0,0,.12)}#side-toggle .tl{display:none}.rmeta{display:none}.hero,.dropwrap,.band,.ready{padding-left:16px;padding-right:16px}.hero h2{font-size:30px}.rhead{padding:12px 16px 0}.export{margin-left:0}.flow{grid-template-columns:1fr}.flow .st{margin-right:0}.flow .st::after{display:none}}
 </style>
 </head>
 <body>
 <div class="top">
+  <button class="btn" id="side-toggle" aria-controls="side" aria-expanded="true" title="Show or hide the list of analyses"><span aria-hidden="true">☰</span><span class="tl">Analyses</span></button>
   <h1>pbip-explainer</h1><span class="sep">|</span><span class="sub">Power BI project analyser</span><span class="ver" id="ver"></span>
   <span class="local">Runs locally · nothing leaves this computer</span>
   <button class="btn" id="to-pkg">Analysis package</button>
   <button class="btn" id="new">New analysis</button>
 </div>
 <div class="shell">
-<aside>
+<aside id="side">
   <span class="kicker">Analyses</span>
   <ul class="runs" id="runs"></ul>
   <p class="datadir" id="datadir"></p>
@@ -200,19 +246,19 @@ input[type=text]{flex:1;min-width:220px}
       </div>
     </div>
     <div class="dropwrap">
+      <div class="prog hidden" id="progress" aria-live="polite">
+        <h3 id="p-name"></h3>
+        <div class="bar" id="p-bar"><i></i></div>
+        <ul class="steps" id="p-steps"></ul>
+        <ul class="batch hidden" id="p-batch"></ul>
+        <div class="callout err hidden" id="p-err" role="alert"></div>
+      </div>
       <label class="drop" id="drop" tabindex="0">
         <div class="ico"></div>
         <div class="big">Drop a Power BI project (.zip) here</div>
         <div class="hint">or click to choose files · several zips at once build a catalog of models</div>
         <input type="file" id="file" accept=".zip,application/zip" multiple>
       </label>
-      <div class="prog hidden" id="progress">
-        <h3 id="p-name"></h3>
-        <div class="bar" id="p-bar"><i></i></div>
-        <ul class="steps" id="p-steps"></ul>
-        <ul class="batch hidden" id="p-batch"></ul>
-        <div class="callout err hidden" id="p-err"></div>
-      </div>
     </div>
     <div class="band">
       <h3>Why this helps</h3>
@@ -238,49 +284,42 @@ input[type=text]{flex:1;min-width:220px}
   <!-- report -->
   <section class="view" id="v-report">
     <div class="rhead">
-      <div class="kicker" id="r-kicker">Analysis</div>
       <div class="rrow">
-        <div><div class="rtitle" id="r-title"></div><div class="rmeta" id="r-meta"></div>
-          <div class="enr" id="r-enr"><span id="enr-state"></span>
-            <a href="#" id="enr-tpl">Download template</a> · <a href="#" id="enr-up">Upload filled enrichment.json</a>
-            <input type="file" id="enr-file" accept=".json,application/json" class="hidden"></div></div>
+        <div class="rid"><div class="rtitle" id="r-title"></div><div class="rmeta" id="r-meta"></div></div>
         <div class="export" id="r-export"></div>
       </div>
-      <div class="tabs" role="tablist">
-        <button class="tab on" data-pane="docs" role="tab">Documentation</button>
-        <button class="tab" data-pane="ask" role="tab">Ask</button>
-        <button class="tab" data-pane="health" role="tab">Health<span class="n" id="n-find">0</span></button>
+      <div class="rrow2">
+        <div class="tabs" role="tablist">
+          <button class="tab on" data-pane="docs" role="tab" id="tab-docs" aria-controls="pane-docs" aria-selected="true">Documentation</button>
+          <button class="tab" data-pane="ask" role="tab" id="tab-ask" aria-controls="pane-ask" aria-selected="false" tabindex="-1">Ask</button>
+          <button class="tab" data-pane="health" role="tab" id="tab-health" aria-controls="pane-health" aria-selected="false" tabindex="-1">Health<span class="n" id="n-find">0</span></button>
+        </div>
+        <div class="enr" id="r-enr"><span id="enr-state"></span>
+          <a href="#" id="enr-tpl">Download template</a> · <a href="#" id="enr-up">Upload filled enrichment.json</a>
+          <input type="file" id="enr-file" accept=".json,application/json" class="hidden"></div>
       </div>
     </div>
-    <div class="pane on" id="pane-docs">
+    <div class="pane on" id="pane-docs" role="tabpanel" aria-labelledby="tab-docs">
       <iframe id="docframe" title="Documentation" sandbox="allow-scripts allow-same-origin allow-popups allow-downloads"></iframe>
     </div>
-    <div class="pane" id="pane-ask"><div class="scroll"><div class="inner">
+    <div class="pane" id="pane-ask" role="tabpanel" aria-labelledby="tab-ask"><div class="scroll"><div class="inner">
       <h3 class="sec">Ask about this report</h3>
-      <p class="secl">Answers come straight from the extracted model: DAX, dependencies, join keys and where things are used.</p>
+      <p class="secl">Type the name of a measure, a table, a column or a report page. The answer comes straight from the model files.</p>
       <div class="ask">
-        <select id="q-cmd" aria-label="Question type">
-          <option value="measure">How is a measure calculated?</option>
-          <option value="table">What is in a table?</option>
-          <option value="column">Who uses a column?</option>
-          <option value="page">What does a page show?</option>
-          <option value="path">How are two tables joined?</option>
-          <option value="impact">What breaks if I change …?</option>
-          <option value="find">Find a term</option>
-          <option value="unused">Unused measures and columns</option>
-          <option value="findings">Model health findings</option>
-          <option value="summary">Summary</option>
-        </select>
-        <input type="text" id="q-a" list="names" aria-label="Name" autocomplete="off">
-        <input type="text" id="q-b" list="names-t" class="hidden" placeholder="Second table" aria-label="Second table" autocomplete="off">
-        <button class="btn primary" id="q-go">Ask</button>
+        <input type="text" id="q-a" list="names" placeholder="Measure, table, Table[Column] or page" aria-label="Measure, table, column or page" autocomplete="off">
+        <button class="btn primary" id="q-go">Show</button>
       </div>
-      <datalist id="names"></datalist><datalist id="names-t"></datalist>
-      <div class="chips" id="q-chips"></div>
-      <div class="dark hidden" id="q-panel"><div class="dh"><span class="kicker" id="q-label">Answer</span><button id="q-copy">Copy</button></div>
-        <pre id="q-out"></pre></div>
+      <datalist id="names"></datalist>
+      <div class="sugg" id="q-sugg"></div>
+      <div class="askmore" id="q-more">
+        <span class="lbl">More questions</span>
+        <span id="q-joinrow">How are <select id="q-t1" aria-label="First table"></select> and
+          <select id="q-t2" aria-label="Second table"></select> joined? <button class="btn" id="q-join">Show join</button></span>
+        <button class="btn" id="q-unused">What is not used?</button>
+      </div>
+      <div class="ans hidden" id="q-panel" aria-live="polite"></div>
     </div></div></div>
-    <div class="pane" id="pane-health"><div class="scroll"><div class="inner">
+    <div class="pane" id="pane-health" role="tabpanel" aria-labelledby="tab-health"><div class="scroll"><div class="inner">
       <h3 class="sec">Model health</h3>
       <p class="secl" id="r-note"></p>
       <div class="tiles" id="r-tiles"></div>
@@ -334,11 +373,44 @@ function el(tag, attrs, ...kids){ const e=document.createElement(tag);
 async function getJSON(url){ const r=await fetch(url,{cache:'no-store'}); if(!r.ok){ let m=r.status; try{m=(await r.json()).error;}catch(_){} throw new Error(m);} return r.json(); }
 const enc = encodeURIComponent;
 
-function show(view){ ['v-home','v-report','v-package'].forEach(v=>$(v).classList.toggle('on',v===view)); }
-function tab(name){ document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.dataset.pane===name));
-  document.querySelectorAll('.pane').forEach(p=>p.classList.toggle('on',p.id==='pane-'+name)); }
-document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{ tab(t.dataset.pane); if(t.dataset.pane==='ask') $('q-a').focus(); }));
-$('new').addEventListener('click',()=>{ current=null; markSelected(null); $('progress').classList.add('hidden'); show('v-home'); });
+function show(view){ ['v-home','v-report','v-package'].forEach(v=>$(v).classList.toggle('on',v===view)); applySide(); }
+// The list of analyses. Wide window: a column, open by default, closed while reading an analysis below 1400px;
+// a click on the button is remembered and wins. Narrow window (CSS, 900px and below): hidden, the button opens it as an overlay.
+let sidePref=null; try{ sidePref=localStorage.getItem('pbipx.side'); }catch(e){}
+const narrow=()=>window.matchMedia('(max-width:900px)').matches;
+function sideDefault(){ return !$('v-report').classList.contains('on') || window.innerWidth>=1400; }
+function sideState(){ const b=document.body.classList; $('side-toggle').setAttribute('aria-expanded',String(narrow()?b.contains('sideover'):!b.contains('noside'))); }
+function applySide(){ const b=document.body.classList; b.remove('sideover'); b.toggle('noside',!(sidePref ? sidePref==='open' : sideDefault())); sideState(); }
+$('side-toggle').addEventListener('click',()=>{ const b=document.body.classList;
+  if(narrow()) b.toggle('sideover');
+  else { const open=b.contains('noside'); b.toggle('noside',!open); sidePref=open?'open':'closed'; try{ localStorage.setItem('pbipx.side',sidePref); }catch(e){} }
+  sideState(); });
+['(max-width:900px)','(min-width:1400px)'].forEach(q=>window.matchMedia(q).addEventListener('change',applySide));
+applySide();
+function tab(name){ document.querySelectorAll('.tab').forEach(t=>{ const on=t.dataset.pane===name; t.classList.toggle('on',on);
+    t.setAttribute('aria-selected',String(on)); t.tabIndex=on?0:-1; });
+  document.querySelectorAll('.pane').forEach(p=>p.classList.toggle('on',p.id==='pane-'+name));
+  if(current && $('v-report').classList.contains('on')) setRoute('#/run/'+enc(current)+'/'+name,true); }
+const tabs=[...document.querySelectorAll('.tab')];
+tabs.forEach((t,i)=>{ t.addEventListener('click',()=>{ tab(t.dataset.pane); if(t.dataset.pane==='ask') $('q-a').focus(); });
+  t.addEventListener('keydown',e=>{ const k={ArrowRight:i+1,ArrowLeft:i-1,Home:0,End:tabs.length-1}[e.key]; if(k===undefined) return;
+    e.preventDefault(); const n=tabs[(k+tabs.length)%tabs.length]; tab(n.dataset.pane); n.focus(); }); });
+// progress and errors take the top of the start page; the landing text returns when there is nothing to report
+function homeStatus(on){ $('progress').classList.toggle('hidden',!on); $('v-home').classList.toggle('status',on); if(on) $('v-home').scrollTop=0; }
+// ---------------------------------------------------------------- address: #/  #/package  #/run/<id>/<tab>
+// Reload keeps the open analysis, Back and Forward move between analyses, a link to an analysis can be bookmarked.
+let routing=false;
+function setRoute(h,replace){ if(routing||location.hash===h||(h==='#/'&&!location.hash)) return;
+  try{ history[replace?'replaceState':'pushState'](null,'',h); }catch(e){} }
+function goHome(){ current=null; clearInterval(poll); markSelected(null); homeStatus(false); show('v-home'); document.title='pbip-explainer'; }
+async function route(){ routing=true;
+  try{ const m=location.hash.match(/^#\/run\/([^\/]+)(?:\/(docs|ask|health))?$/);
+    if(m){ if(!(await openRun(decodeURIComponent(m[1]),m[2]))) goHome(); }
+    else if(location.hash==='#/package') await openPackage();
+    else goHome();
+  } finally{ routing=false; } }
+window.addEventListener('popstate',route);
+$('new').addEventListener('click',()=>{ goHome(); setRoute('#/'); });
 $('to-pkg').addEventListener('click',()=>openPackage());
 
 // ---------------------------------------------------------------- upload
@@ -354,7 +426,7 @@ document.addEventListener('drop',e=>{ e.preventDefault(); if(e.dataTransfer&&e.d
 function handle(list){ const fs=[...(list||[])]; if(!fs.length) return; if(fs.length===1) upload(fs[0]); else uploadMany(fs); }
 
 function showProgress(name){
-  show('v-home'); $('progress').classList.remove('hidden');
+  show('v-home'); homeStatus(true); document.title=name+' · pbip-explainer';
   $('p-name').textContent=name; $('p-err').classList.add('hidden'); $('p-steps').innerHTML='';
   $('p-bar').classList.remove('indet'); $('p-bar').firstElementChild.style.width='0';
   $('p-batch').classList.add('hidden'); $('p-batch').innerHTML=''; $('p-steps').classList.remove('hidden');
@@ -367,7 +439,7 @@ function sendZip(f,onprog){ return new Promise((res,rej)=>{ const x=new XMLHttpR
 async function waitDone(id){ for(;;){ let m; try{ m=await getJSON('/api/runs/'+enc(id)); }catch(e){ m=null; }
   if(m&&(m.status==='done'||m.status==='error')) return m; await new Promise(r=>setTimeout(r,600)); } }
 async function uploadMany(fs){
-  showProgress(fs.length+' Power BI projects'); clearInterval(poll); current=null;
+  showProgress(fs.length+' Power BI projects'); clearInterval(poll); current=null; markSelected(null); setRoute('#/');
   $('p-steps').classList.add('hidden'); const ul=$('p-batch'); ul.classList.remove('hidden');
   const rows=fs.map(f=>{ const st=el('span',{class:'st',text:'waiting'}); ul.append(el('li',{},el('span',{text:f.name}),st)); return st; });
   const ids=[]; let n=0;
@@ -388,7 +460,7 @@ async function uploadMany(fs){
 function showError(msg){ $('p-bar').classList.remove('indet'); const e=$('p-err'); e.innerHTML=''; e.append(el('span',{class:'kicker',text:'Could not analyse'}),document.createTextNode(msg)); e.classList.remove('hidden');
   [...$('p-steps').children].forEach(li=>li.classList.remove('now')); }
 function upload(f){
-  showProgress(f.name); clearInterval(poll);
+  showProgress(f.name); clearInterval(poll); current=null; markSelected(null); setRoute('#/');
   if(!/\.zip$/i.test(f.name)){ showError('Please drop a .zip file. A .pbix cannot be read: save it as a Power BI project (.pbip) first and zip the folder.'); return; }
   $('p-steps').append(el('li',{class:'now',text:'Uploading '+(f.size/1048576).toFixed(1)+' MB'}));
   const x=new XMLHttpRequest(); x.open('POST','/api/analyse');
@@ -401,7 +473,7 @@ function upload(f){
   x.send(f);
 }
 function watch(id){
-  current=id; clearInterval(poll);
+  current=id; clearInterval(poll); setRoute('#/run/'+enc(id),true);
   const tick=async()=>{ let m; try{ m=await getJSON('/api/runs/'+enc(id)); }catch(e){ return; }
     if(current!==id){ clearInterval(poll); return; }
     const ul=$('p-steps'); ul.innerHTML=''; ul.append(el('li',{class:'done',text:'Uploaded'}));
@@ -414,11 +486,13 @@ function watch(id){
 }
 
 // ---------------------------------------------------------------- result
-function showResult(m){
+function showResult(m,tabName){
   current=m.id; show('v-report'); markSelected(m.id);
-  $('r-title').textContent=m.title||m.name; $('r-kicker').textContent='Analysis · '+(m.name||'');
+  document.title=(m.title||m.name)+' · pbip-explainer'; setRoute('#/run/'+enc(m.id)+'/'+(tabName||'docs'));
+  $('r-title').textContent=m.title||m.name; $('r-title').title=m.title||m.name;
   $('r-meta').textContent=[m.name, m.modelFormat&&('model '+m.modelFormat), m.reportFormat&&('report '+m.reportFormat),
-    'analysed '+(m.created||'').replace('T',' ')].filter(Boolean).join(' · ');
+    'analysed '+(m.created||'').replace('T',' ').slice(0,16)].filter(Boolean).join(' · ');
+  $('r-meta').title=$('r-meta').textContent;
   const base='/runs/'+enc(m.id)+'/', f=m.files||{}, ex=$('r-export'); ex.innerHTML='';
   ex.append(el('span',{class:'lbl',text:'Export'}));
   if(f.html) ex.append(el('a',{class:'btn primary',href:base+f.html+'?download',text:'HTML'}));
@@ -426,22 +500,12 @@ function showResult(m){
   (f.svg||[]).forEach(p=>ex.append(el('a',{class:'btn',href:base+p+'?download',text:'Diagram (SVG)'})));
   ex.append(el('a',{class:'btn',href:'/api/runs/'+enc(m.id)+'/knowledge.zip',title:'model.json, agent brief, CSVs and docs for agents or Excel',text:'Knowledge pack'}));
   if(f.html) ex.append(el('a',{class:'btn',href:base+f.html,target:'_blank',rel:'noopener',title:'Open the documentation in its own browser tab',text:'↗'}));
-  $('docframe').src = f.html ? base+f.html+'?t='+Date.now() : 'about:blank';
+  $('docframe').src = f.html ? base+f.html+'?embed=1&t='+Date.now() : 'about:blank';   // embed=1: the docs hide their own title block
   $('enr-state').className=''; $('enr-state').textContent = m.enriched ? 'Business descriptions added '+m.enriched.replace('T',' ').slice(0,16)+'.' : 'No business descriptions yet:';
   $('enr-tpl').href = base+'enrichment.json?download';
-  // health
-  const t=$('r-tiles'); t.innerHTML=''; const s=m.stats||{};
-  [['pages','pages'],['visuals','visuals'],['tables','tables'],['measures','measures'],['relationships','relationships'],['columns','columns'],['roles','RLS roles']]
-    .forEach(([k,l])=>{ if(s[k]!=null) t.append(el('div',{class:'tile'},el('div',{class:'v',text:String(s[k])}),el('div',{class:'l',text:l}))); });
-  const fd=$('r-findings'); fd.innerHTML=''; const fs=m.findings||[]; $('n-find').textContent=fs.length;
-  if(!fs.length) fd.append(el('p',{class:'small muted',text:'No findings.'}));
-  fs.forEach(x=>{ const d=el('div',{class:'find '+x.severity},el('div',{class:'sev',text:x.severity+' · '+x.code}),el('div',{text:x.message}));
-    if(x.advice) d.append(el('div',{class:'adv',text:x.advice}));
-    if(x.objects&&x.objects.length){ const ul=el('ul'); x.objects.forEach(o=>ul.append(el('li',{text:String(o)}))); d.append(ul);} fd.append(d); });
-  $('r-note').textContent=m.liveConnection?'This report uses a live connection: the semantic model is not in the zip, so only the report side is documented.':
-    'Findings come from the model files. A PBIP holds metadata only, so nothing here shows data values.';
-  $('q-panel').classList.add('hidden'); $('q-a').value=''; $('q-b').value='';
-  tab('docs'); loadNames(m.id);
+  lastMeta=m; renderHealth();
+  $('q-panel').classList.add('hidden'); $('q-a').value='';
+  tab(tabName||'docs'); loadNames(m.id);
 }
 
 // ---------------------------------------------------------------- enrichment upload
@@ -453,39 +517,122 @@ $('enr-file').addEventListener('change',async()=>{ const f=$('enr-file').files[0
     showResult(j.run); const s2=$('enr-state'); s2.className='okmsg'; s2.textContent='Added descriptions for '+j.described+' objects; shown as "AI-drafted · review".';
   }catch(err){ st.className='errmsg'; st.textContent=err.message; } });
 
-// ---------------------------------------------------------------- ask
-const ph={measure:'Measure name',table:'Table name',column:'Table[Column]',page:'Page name',path:'First table',
-  impact:'Measure, Table[Column] or table',find:'Text to look for'};
-async function loadNames(id){ try{ names=await getJSON('/api/runs/'+enc(id)+'/names'); }catch(e){ names={}; } setCmd(); }
-function fill(dl,items){ dl.innerHTML=''; (items||[]).slice(0,3000).forEach(v=>dl.append(el('option',{value:v}))); }
-function setCmd(){
-  const c=$('q-cmd').value, needs=c in ph;
-  $('q-a').classList.toggle('hidden',!needs); $('q-a').placeholder=ph[c]||'';
-  $('q-b').classList.toggle('hidden',c!=='path');
-  const pick={measure:names.measures,table:names.tables,column:names.columns,page:names.pages,path:names.tables,
-    impact:[].concat(names.measures||[],names.columns||[],names.tables||[]),find:[]}[c];
-  fill($('names'),pick); fill($('names-t'),names.tables);
-  const chips=$('q-chips'); chips.innerHTML='';
-  (pick||[]).slice(0,8).forEach(v=>{ const b=el('button',{class:'chip',text:v}); b.addEventListener('click',()=>{ $('q-a').value=v; if(c!=='path') ask(); else $('q-b').focus(); }); chips.append(b); });
-}
-$('q-cmd').addEventListener('change',()=>{ setCmd(); if(!($('q-cmd').value in ph)) ask(); else $('q-a').focus(); });
-$('q-go').addEventListener('click',ask);
-['q-a','q-b'].forEach(i=>$(i).addEventListener('keydown',e=>{ if(e.key==='Enter') ask(); }));
-async function ask(){
-  if(!current) return; const c=$('q-cmd').value;
-  const args=c==='path'?[$('q-a').value,$('q-b').value]:(c in ph?[$('q-a').value]:[]);
-  const out=$('q-out'); $('q-panel').classList.remove('hidden'); out.textContent='…';
-  $('q-label').textContent=$('q-cmd').selectedOptions[0].text.replace('…','')+(args.filter(Boolean).length?' · '+args.filter(Boolean).join(' → '):'');
-  try{ const r=await fetch('/api/runs/'+enc(current)+'/query',{method:'POST',headers:{...H,'Content-Type':'application/json'},body:JSON.stringify({command:c,args})});
-    const j=await r.json(); out.textContent=j.text||j.error||'No answer.'; }catch(e){ out.textContent='Request failed: '+e.message; }
+// ---------------------------------------------------------------- health
+// Same order as the documentation: what reaches report visuals first, notes folded away. The tab shows the high-priority count.
+let lastMeta=null;
+const plural=(n,one,many)=>n+' '+(n===1?one:many);
+function askLink(label,q){ const b=el('button',{class:'lnk',text:label,title:'Show '+q}); b.addEventListener('click',()=>{ tab('ask'); about(q); }); return b; }
+function linkObj(text){ const frag=document.createDocumentFragment(), meas=new Set(names.measures||[]), hits=[];
+  if(meas.has(text)){ frag.append(askLink(text,text)); return frag; }
+  (names.columns||[]).forEach(c=>{ let i=-1; while((i=text.indexOf(c,i+1))>=0){ if(i===0||/[^A-Za-z0-9_]/.test(text[i-1])) hits.push([i,c.length,c]); } });
+  const re=/\[([^\]]+)\]/g; let m; while((m=re.exec(text))){ if(meas.has(m[1])&&(m.index===0||/[^A-Za-z0-9_\]]/.test(text[m.index-1]))) hits.push([m.index,m[0].length,m[1]]); }
+  hits.sort((x,y)=>x[0]-y[0]||y[1]-x[1]); let pos=0;
+  hits.forEach(([i,l,q])=>{ if(i<pos) return; frag.append(text.slice(pos,i)); frag.append(askLink(text.slice(i,i+l),q)); pos=i+l; });
+  frag.append(text.slice(pos)); return frag; }
+function findingNode(x){ const d=el('div',{class:'find '+x.severity},el('div',{class:'sev',title:x.code,text:x.severity}),el('div',{text:x.message}));
+  if(x.advice) d.append(el('div',{class:'adv',text:x.advice}));
+  if(x.objects&&x.objects.length){ const ul=el('ul'); x.objects.forEach(o=>{ const li=el('li'); li.append(linkObj(String(o))); ul.append(li); });
+    if(x.more) ul.append(el('li',{class:'muted',text:'and '+x.more+' more, listed in the documentation'})); d.append(ul); }
+  if(x.impact) d.append(el('div',{class:'imp'+(x.reach?' hit':'')},el('b',{text:'Impact'}),document.createTextNode(x.impact)));
+  return d; }
+function renderHealth(){ const m=lastMeta; if(!m) return;
+  const t=$('r-tiles'); t.innerHTML=''; const s=m.stats||{};
+  [['pages','pages'],s.dataVisuals!=null?['dataVisuals','data visuals']:['visuals','visuals'],['tables','tables'],['measures','measures'],['relationships','relationships'],['columns','columns'],['roles','RLS roles']]
+    .forEach(([k,l])=>{ if(s[k]!=null) t.append(el('div',{class:'tile'},el('div',{class:'v',text:String(s[k])}),el('div',{class:'l',text:l}))); });
+  const fd=$('r-findings'); fd.innerHTML=''; const fs=m.findings||[], graded=fs.some(f=>f.priority);
+  const by=p=>fs.filter(f=>f.priority===p), hi=by('high'), mid=by('medium'), lo=by('low');
+  const n=graded?hi.length:fs.length, badge=$('n-find'); badge.textContent=n; badge.classList.toggle('hidden',!n);
+  badge.title=graded?plural(n,'high-priority finding','high-priority findings'):plural(n,'finding','findings');
+  const group=(cls,title,items,empty)=>{ if(!items.length&&!empty) return; fd.append(el('div',{class:'hgrp '+cls,text:title+' ('+items.length+')'}));
+    if(!items.length) fd.append(el('p',{class:'small muted',text:empty})); items.forEach(x=>fd.append(findingNode(x))); };
+  if(!fs.length) fd.append(el('p',{class:'small muted',text:'No findings.'}));
+  else if(!graded) fs.forEach(x=>fd.append(findingNode(x)));               // analysed by an older version: no priorities yet
+  else { group('high','High priority',hi,'Nothing needs attention first.'); group('','Medium priority',mid);
+    if(lo.length){ const det=el('details',{class:'lowp'},el('summary',{text:'Low priority and notes ('+lo.length+')'})); lo.forEach(x=>det.append(findingNode(x))); fd.append(det); }
+    if(m.priorityRule) fd.append(el('p',{class:'small muted hrule',text:'How the priority is set: '+m.priorityRule+'.'})); }
+  $('r-note').textContent=m.liveConnection?'This report uses a live connection: the semantic model is not in the zip, so only the report side is documented.':
+    'Findings come from the model files. A PBIP holds metadata only, so nothing here shows data values.';
 }
 
-$('q-copy').addEventListener('click',async()=>{ try{ await navigator.clipboard.writeText($('q-out').textContent); $('q-copy').textContent='Copied'; }catch(e){ const r=document.createRange(); r.selectNodeContents($('q-out')); const sel=getSelection(); sel.removeAllRanges(); sel.addRange(r); $('q-copy').textContent='Selected'; } setTimeout(()=>$('q-copy').textContent='Copy',1400); });
+// ---------------------------------------------------------------- ask
+// One box: type a name, get everything about that object. Names inside an answer open the next answer.
+let trail=[];
+async function loadNames(id){ try{ names=await getJSON('/api/runs/'+enc(id)+'/names'); }catch(e){ names={}; } setupAsk(); renderHealth(); }
+function fill(dl,items){ dl.innerHTML=''; (items||[]).slice(0,4000).forEach(v=>dl.append(el('option',{value:v}))); }
+function setupAsk(){
+  trail=[]; $('q-panel').classList.add('hidden'); $('q-panel').innerHTML=''; $('q-a').value=''; $('q-sugg').classList.remove('hidden');
+  const uniq=a=>[...new Set(a||[])], tabs=names.tablesByRole||names.tables||[];
+  fill($('names'),[].concat(names.measures||[],names.columns||[],(names.tables||[]).map(t=>t+' (table)'),uniq(names.pages).map(p=>p+' (page)')));
+  const s=$('q-sugg'); s.innerHTML='';
+  const group=(label,items,suffix)=>{ if(!items.length) return; const box=el('div',{class:'chips'});
+    items.forEach(v=>{ const b=el('button',{class:'chip',text:v}); b.addEventListener('click',()=>about(v+suffix)); box.append(b); });
+    s.append(el('div',{class:'lbl',text:label}),box); };
+  group('Most used measures',(names.top&&names.top.length)?names.top:(names.measures||[]).slice(0,6),'');
+  group('Tables',tabs.slice(0,8),' (table)');
+  group('Report pages',uniq(names.pages).slice(0,8),' (page)');
+  ['q-t1','q-t2'].forEach((id,i)=>{ const sel=$(id); sel.innerHTML=''; tabs.forEach(t=>sel.append(el('option',{value:t,text:t}))); if(tabs.length>1) sel.selectedIndex=i; });
+  $('q-more').classList.toggle('hidden',!tabs.length); $('q-joinrow').classList.toggle('hidden',tabs.length<2);
+}
+function about(text){ return ask({command:'about',args:[text]}); }
+async function ask(req,back){
+  if(!current) return;
+  const panel=$('q-panel'); panel.classList.remove('hidden'); panel.innerHTML=''; panel.append(el('p',{class:'muted',text:'Looking it up…'}));
+  let j; try{ const r=await fetch('/api/runs/'+enc(current)+'/query',{method:'POST',headers:{...H,'Content-Type':'application/json'},body:JSON.stringify({...req,structured:true})});
+    j=await r.json(); }catch(e){ j={error:'The request failed: '+e.message}; }
+  if(!j.answer){ panel.innerHTML=''; panel.append(el('p',{text:j.text||j.error||'No answer.'})); return; }
+  if(!back) trail.push(req);
+  $('q-sugg').classList.add('hidden');            // the answer takes the room; clearing the box brings the suggestions back
+  renderAnswer(j.answer);
+  if(req.command==='about' && j.answer.ref) $('q-a').value=req.args[0]||'';
+}
+function goBack(){ if(trail.length<2) return; trail.pop(); ask(trail[trail.length-1],true); }
+function openDoc(anchor){ tab('docs'); const f=$('docframe');
+  try{ const t=f.contentDocument.getElementById(anchor); if(t){ const d=t.closest('details'); if(d){ d.hidden=false; d.open=true; } t.scrollIntoView({behavior:'instant',block:'start'}); return; } }catch(e){}
+  f.src=f.src.split('#')[0]+'#'+anchor; }
+function copyText(text,btn){ const done=t=>{ const old=btn.textContent; btn.textContent=t; setTimeout(()=>btn.textContent=old,1400); };
+  const fallback=()=>{ const ta=el('textarea',{readonly:''}); ta.value=text; ta.style.position='fixed'; ta.style.opacity='0'; document.body.append(ta); ta.select();
+    let ok=false; try{ ok=document.execCommand('copy'); }catch(e){} ta.remove(); done(ok?'Copied':'Could not copy'); };
+  if(navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(text).then(()=>done('Copied'),fallback); else fallback(); }
+function refNode(ref){ if(!ref.q) return el('span',{text:ref.n});
+  const b=el('button',{class:'lnk',text:ref.n,title:'Show '+ref.n}); b.addEventListener('click',()=>about(ref.q)); return b; }
+function itemNode(it){ const li=el('li');
+  if(it.tag) li.append(el('span',{class:'tg '+it.tag,text:it.tag}));
+  if(it.text){ li.append(el('span',{text:it.text}));
+    if(it.ref){ li.append(el('span',{class:'sub',text:' · '+(it.sub?it.sub+' ':'')})); li.append(refNode(it.ref)); }
+    else if(it.sub) li.append(el('span',{class:'sub',text:' · '+it.sub})); }
+  else if(it.ref){ li.append(refNode(it.ref)); if(it.sub) li.append(el('span',{class:'sub',text:' · '+it.sub})); }
+  if(it.children&&it.children.length){ const ul=el('ul'); it.children.forEach(c=>ul.append(itemNode(c))); li.append(ul); }
+  return li; }
+function listNode(items){ const LIM=12, ul=el('ul',{class:'al'}), wrap=el('div',{},ul);
+  items.forEach((it,i)=>{ const li=itemNode(it); if(i>=LIM) li.classList.add('hidden'); ul.append(li); });
+  if(items.length>LIM){ const more=el('button',{class:'lnk',text:'Show all '+items.length});
+    more.addEventListener('click',()=>{ [...ul.children].forEach(x=>x.classList.remove('hidden')); more.remove(); }); wrap.append(more); }
+  return wrap; }
+function renderAnswer(a){
+  const panel=$('q-panel'); panel.innerHTML='';
+  const h4=el('h4',{text:a.title}); (a.badges||[]).forEach(b=>h4.append(el('span',{class:'bdg',text:b})));
+  const acts=el('div',{class:'aa'});
+  if(trail.length>1){ const b=el('button',{class:'btn',text:'← Back'}); b.addEventListener('click',goBack); acts.append(b); }
+  if(a.anchor){ const b=el('button',{class:'btn',text:'Open in documentation'}); b.addEventListener('click',()=>openDoc(a.anchor)); acts.append(b); }
+  const c=el('button',{class:'btn',text:'Copy as text'}); c.addEventListener('click',()=>copyText(a.text||'',c)); acts.append(c);
+  panel.append(el('div',{class:'ah'},el('div',{},el('div',{class:'kicker',text:a.kind}),h4,a.meta?el('div',{class:'am',text:a.meta}):null),acts));
+  const body=el('div',{class:'ab'});
+  (a.blocks||[]).forEach(b=>{ const cont=el('div');
+    if(b.text){ if(b.t==='code') cont.append(el('pre',{text:b.text})); else { const p=el('p',{text:b.text}); if(b.badge) p.append(el('span',{class:'bdg',text:b.badge})); cont.append(p); } }
+    if(b.items&&b.items.length) cont.append(listNode(b.items)); else if(!b.text&&b.empty) cont.append(el('p',{class:'muted',text:b.empty}));
+    body.append(el('div',{class:'blk'},el('div',{class:'bl',text:b.label}),cont)); });
+  panel.append(body);
+}
+$('q-go').addEventListener('click',()=>about($('q-a').value));
+$('q-a').addEventListener('keydown',e=>{ if(e.key==='Enter') about($('q-a').value); });
+$('q-a').addEventListener('input',()=>{ if(!$('q-a').value.trim()){ $('q-sugg').classList.remove('hidden'); $('q-panel').classList.add('hidden'); } });
+$('q-join').addEventListener('click',()=>ask({command:'path',args:[$('q-t1').value,$('q-t2').value]}));
+$('q-unused').addEventListener('click',()=>ask({command:'unused',args:[]}));
 
 // ---------------------------------------------------------------- analysis package
 let pkTimer=null;
 async function openPackage(pre){
-  current=null; markSelected(null); show('v-package');
+  current=null; markSelected(null); show('v-package'); document.title='Analysis package · pbip-explainer'; setRoute('#/package');
   let list=[]; try{ list=(await getJSON('/api/runs')).filter(r=>r.status==='done'); }catch(e){}
   const ul=$('pk-list'); ul.innerHTML='';
   if(!list.length){ ul.append(el('li',{class:'empty',text:'No finished analyses yet. Drop one or more zips first.'})); renderPreview(null); return; }
@@ -541,29 +688,35 @@ async function refreshRuns(sel){
   let list=[]; try{ list=await getJSON('/api/runs'); }catch(e){}
   const ul=$('runs'); ul.innerHTML='';
   if(!list.length) ul.append(el('li',{class:'empty',text:'Nothing analysed yet.'}));
-  list.forEach(r=>{ const del=el('button',{class:'del',title:'Delete this analysis','aria-label':'Delete',text:'×'});
-    const li=el('li',{'data-id':r.id},el('span',{class:'dot '+(r.status||'')}),
-      el('div',{},el('div',{class:'nm',text:r.title||r.name||r.id}),
-        el('div',{class:'dt',text:(r.created||'').replace('T',' ').slice(0,16)+(r.status==='error'?' · failed':'')})),del);
-    li.addEventListener('click',()=>openRun(r.id));
-    del.addEventListener('click',async e=>{ e.stopPropagation();
-      if(!confirm('Delete the analysis of "'+(r.title||r.name)+'" from this computer?')) return;
+  const newest={}; list.forEach(r=>{ if(r.status!=='done') return; const t=r.title||r.name; if(!newest[t]||(r.created||'')>(newest[t].created||'')) newest[t]=r; });
+  list.forEach(r=>{ const name=r.title||r.name||r.id, when=(r.created||'').replace('T',' ').slice(0,16);
+    const older=r.status==='done'&&newest[r.title||r.name]!==r;
+    const open=el('button',{class:'runbtn',title:name+' · '+when},el('span',{class:'dot '+(r.status||'')}),
+      el('div',{},el('div',{class:'nm',text:name}),
+        el('div',{class:'dt',text:when+(r.status==='error'?' · failed':'')+(older?' · older analysis':'')})));
+    const del=el('button',{class:'del',title:'Delete this analysis','aria-label':'Delete the analysis of '+name+' from '+when,text:'×'});
+    open.addEventListener('click',()=>openRun(r.id));
+    del.addEventListener('click',async()=>{
+      if(!confirm('Delete the analysis of "'+name+'" from this computer?')) return;
       await fetch('/api/runs/'+enc(r.id)+'/delete',{method:'POST',headers:H});
-      if(current===r.id){ current=null; show('v-home'); $('progress').classList.add('hidden'); }
+      if(current===r.id){ goHome(); setRoute('#/',true); }
       refreshRuns(); });
-    ul.append(li); });
+    ul.append(el('li',{'data-id':r.id},open,del)); });
   markSelected(sel||current);
 }
-function markSelected(id){ [...$('runs').children].forEach(li=>li.classList.toggle('sel',!!id&&li.dataset.id===id)); }
-async function openRun(id){
-  let m; try{ m=await getJSON('/api/runs/'+enc(id)); }catch(e){ return; }
-  if(m.status==='done') showResult(m);
-  else { showProgress(m.title||m.name||id); current=id; markSelected(id);
+function markSelected(id){ [...$('runs').children].forEach(li=>{ const on=!!id&&li.dataset.id===id; li.classList.toggle('sel',on);
+  const b=li.querySelector('.runbtn'); if(b){ if(on) b.setAttribute('aria-current','true'); else b.removeAttribute('aria-current'); } }); }
+// returns false when the analysis does not exist (any more)
+async function openRun(id,tabName){
+  let m; try{ m=await getJSON('/api/runs/'+enc(id)); }catch(e){ return false; }
+  if(m.status==='done') showResult(m,tabName);
+  else { showProgress(m.title||m.name||id); current=id; markSelected(id); setRoute('#/run/'+enc(id));
     if(m.status==='running'){ $('p-bar').classList.add('indet'); watch(id);} else showError(m.error||'This analysis did not finish.'); }
+  return true;
 }
 
 getJSON('/api/info').then(i=>{ $('ver').textContent='v'+i.version; $('datadir').textContent='Saved in '+i.dataDir; }).catch(()=>{});
-refreshRuns();
+refreshRuns().then(route);
 })();
 </script>
 </body>

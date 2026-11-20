@@ -133,6 +133,14 @@ def _split_top(s: str) -> List[str]:
     return args
 
 
+EMBEDDED = re.compile(r'(Binary\.FromText\(\s*")([^"]*)(")')
+
+
+def hide_embedded(text: Optional[str]) -> str:
+    """Enter-data tables keep their rows as compressed text inside the M code. That is data, so it is never shown."""
+    return EMBEDDED.sub(lambda m: f"{m.group(1)}… embedded data not shown, {len(m.group(2))} characters …{m.group(3)}", text or "")
+
+
 def _lit(arg: str) -> str:
     a = arg.strip()
     m = _STRING.fullmatch(a)
@@ -160,7 +168,7 @@ def analyse(m: Optional[str], known_queries: Optional[List[str]] = None) -> dict
         if fn not in CONNECTORS:
             continue
         args = _split_top(_balanced_args(text, fm.end() - 1))
-        src = {"function": fn, "kind": CONNECTORS[fn], "arguments": [_lit(a) for a in args[:3] if not a.startswith("[")]}
+        src = {"function": fn, "kind": CONNECTORS[fn], "arguments": [hide_embedded(_lit(a)) for a in args[:3] if not a.startswith("[")]}
         opts = [a for a in args if a.startswith("[")]
         if opts:
             q = re.search(r'Query\s*=\s*"((?:[^"]|"")*)"', opts[0])

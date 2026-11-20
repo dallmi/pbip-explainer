@@ -417,8 +417,9 @@ def analyse(model: dict, reports: List[dict]) -> dict:
             "measures": sorted(m["name"] for m in measures.values() if not m["usedInReport"]),
             "columns": sorted(f"{t['name']}[{c['name']}]" for t in model["tables"] if not t["isAutoDateTable"]
                               for c in t["columns"] if not c["referenced"] and not c["usedInReport"]),
-            "note": "Usage is computed against the report(s) in this package only. A shared semantic model may "
-                    "serve other reports, so 'unused' means 'not used by the packaged report(s)'.",
+            "note": (f"Usage is computed against the {'report' if len(reports) == 1 else 'reports'} in this package only. "
+                     "A shared semantic model may serve other reports, so 'unused' means "
+                     f"'not used by the packaged {'report' if len(reports) == 1 else 'reports'}'."),
         },
         "dependencies": {k: sorted(v) for k, v in deps.items()},
     }
@@ -579,6 +580,18 @@ def _uniq(items: list) -> list:
 
 # ---------------------------------------------------------------------------- findings
 
+def _pl(n: int, one: str, many: str) -> str:
+    """'1 relationship filters' / '3 relationships filter': a finding reads like a sentence."""
+    return f"{n} {one if n == 1 else many}"
+
+
+def _obj_label(node: str) -> str:
+    """Readable name of a dependency-graph node (measure:X -> [X]); findings never show internal ids."""
+    kind, _, name = node.partition(":")
+    return {"measure": f"[{name}]", "reportMeasure": f"[{name}] (report measure)", "column": name, "table": f"table {name}",
+            "calcItem": f"calculation item {name}", "role": f"security role {name}"}.get(kind, name or node)
+
+
 def _f(sev: str, code: str, msg: str, objects: Optional[list] = None, advice: Optional[str] = None,
        scope: Optional[tuple] = None) -> dict:
     """scope says which report visuals the finding reaches; _attach_impact resolves it:
@@ -694,14 +707,14 @@ def _findings(model: dict, reports: List[dict], broken: list, unresolved: list) 
     bi = [r for r in rels if r["crossFilteringBehavior"] == "bothDirections"]
     if bi:
         out.append(_f("warning", "bidirectional-relationship",
-                      f"{len(bi)} relationship(s) filter in both directions.",
+                      _pl(len(bi), "relationship filters", "relationships filter") + " in both directions.",
                       [f"{r['fromTable']}[{r['fromColumn']}] ↔ {r['toTable']}[{r['toColumn']}]" for r in bi],
                       "Bi-directional filters can create ambiguous paths and slow queries. Keep them only where "
                       "intended (e.g. bridge tables) and document why.",
                       scope=("tablePairs", [(r["fromTable"], r["toTable"]) for r in bi])))
     mm = [r for r in rels if r["cardinality"] == "*:*"]
     if mm:
-        out.append(_f("warning", "many-to-many", f"{len(mm)} many-to-many relationship(s).",
+        out.append(_f("warning", "many-to-many", _pl(len(mm), "many-to-many relationship", "many-to-many relationships") + ".",
                       [f"{r['fromTable']}[{r['fromColumn']}] — {r['toTable']}[{r['toColumn']}]" for r in mm],
                       "Many-to-many relationships aggregate differently than users expect; check totals.",
                       scope=("tablePairs", [(r["fromTable"], r["toTable"]) for r in mm])))
@@ -740,8 +753,8 @@ def _findings(model: dict, reports: List[dict], broken: list, unresolved: list) 
 
     if broken:
         out.append(_f("warning", "unresolved-report-reference",
-                      f"{len(broken)} report field reference(s) could not be matched to the semantic model or to "
-                      "report-level measures.",
+                      _pl(len(broken), "report field reference", "report field references")
+                      + " could not be matched to the semantic model or to report-level measures.",
                       [f"{b['field']} in {b['where']}" for b in broken[:20]],
                       "Status 'unresolved', not proven broken. If the packaged model is the one the report uses, "
                       "these visuals show an error in Power BI: check for renamed or deleted fields.",
@@ -749,8 +762,8 @@ def _findings(model: dict, reports: List[dict], broken: list, unresolved: list) 
     ur = [u for u in unresolved if not u["reference"].startswith("[")]
     if ur:
         out.append(_f("warning", "unresolved-dax-reference",
-                      f"{len(ur)} DAX reference(s) could not be matched to a model object.",
-                      [f"{u['reference']} in {u['object']}" for u in ur[:20]],
+                      _pl(len(ur), "DAX reference", "DAX references") + " could not be matched to a model object.",
+                      [f"{u['reference']} in {_obj_label(u['object'])}" for u in ur[:20]],
                       scope=("objects", sorted({u["object"] for u in ur}))))
 
     implicit, implicit_vis = [], set()
@@ -763,7 +776,8 @@ def _findings(model: dict, reports: List[dict], broken: list, unresolved: list) 
                         implicit.append(f"{f.get('aggregation')} of {f['table']}[{f['name']}] in '{v['title'] or v['name']}' ({p['displayName']})")
     if implicit:
         out.append(_f("warning", "implicit-measures",
-                      f"{len(implicit)} visual field(s) use implicit measures (column aggregated in the visual).",
+                      _pl(len(implicit), "visual field uses an implicit measure", "visual fields use implicit measures")
+                      + " (a column aggregated in the visual).",
                       implicit[:20], "Replace with explicit measures so the logic is defined once and documented.",
                       scope=("visuals", sorted(implicit_vis))))
 
@@ -777,7 +791,7 @@ def _findings(model: dict, reports: List[dict], broken: list, unresolved: list) 
                 keyish.append(f"{t['name']}[{c['name']}] (summarizeBy: {c.get('summarizeBy')})")
                 keyish_ids.append(cid(t["name"], c["name"]))
     if keyish:
-        out.append(_f("info", "summarize-keys", f"{len(keyish)} visible ID/key/year column(s) are summed by default.",
+        out.append(_f("info", "summarize-keys", _pl(len(keyish), "visible ID/key/year column is", "visible ID/key/year columns are") + " summed by default.",
                       keyish[:20], "Set summarizeBy to none so they are not added up in visuals.",
                       scope=("objects", keyish_ids)))
 
@@ -789,7 +803,7 @@ def _findings(model: dict, reports: List[dict], broken: list, unresolved: list) 
                       advice="Descriptions show as tooltips in Power BI and feed Copilot. Use enrichment to draft them."))
     unused_m = [m["name"] for t in model["tables"] for m in t["measures"] if not m.get("usedInReport")]
     if unused_m:
-        out.append(_f("info", "unused-measures", f"{len(unused_m)} measure(s) are not used by the packaged report(s).",
+        out.append(_f("info", "unused-measures", _pl(len(unused_m), "measure is", "measures are") + f" not used by the packaged report{'' if len(reports) == 1 else 's'}.",
                       unused_m[:30], "Check other reports on the same model before deleting."))
     calc = [(t["name"], c["name"]) for t in model["tables"] for c in t["columns"] if c["columnType"] == "calculated"]
     calc_cols = [f"{tn}[{cn}]" for tn, cn in calc]
@@ -813,12 +827,12 @@ def _findings(model: dict, reports: List[dict], broken: list, unresolved: list) 
                       local_paths[:10], "Scheduled refresh in the service needs a gateway or a cloud source.",
                       scope=("tables", sorted(local_tables)) if local_tables else None))
     if model["roles"]:
-        out.append(_f("info", "row-level-security", f"{len(model['roles'])} security role(s) defined.",
+        out.append(_f("info", "row-level-security", _pl(len(model["roles"]), "security role", "security roles") + " defined.",
                       [r["name"] for r in model["roles"]]))
     for rep in reports:
         hidden = [p["displayName"] for p in rep["pages"] if p["hidden"]]
         if hidden:
-            out.append(_f("info", "hidden-pages", f"Report '{rep['name']}' has {len(hidden)} hidden page(s).", hidden))
+            out.append(_f("info", "hidden-pages", f"Report '{rep['name']}' has {_pl(len(hidden), 'hidden page', 'hidden pages')}.", hidden))
         if rep.get("customVisuals"):
             out.append(_f("info", "custom-visuals", f"Report '{rep['name']}' uses custom visuals.", rep["customVisuals"],
                           "Check that these visuals are approved in your tenant.",
@@ -887,7 +901,7 @@ def finding_impact_text(f: dict) -> str:
     if i is None:
         return "Not tied to specific report visuals."
     if not i["visuals"]:
-        return "Reaches no visual in the packaged report(s)."
+        return "Reaches no visual in the package."
     pages = i["pages"]
     pg = ", ".join(pages[:6]) + (f" and {len(pages) - 6} more" if len(pages) > 6 else "")
-    return f"Affects {i['visuals']} visual(s) on {len(pages)} page(s): {pg}."
+    return f"Affects {_pl(i['visuals'], 'visual', 'visuals')} on {_pl(len(pages), 'page', 'pages')}: {pg}."

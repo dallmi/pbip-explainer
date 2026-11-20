@@ -3,7 +3,7 @@
 Hand over a Power BI project as a zip, get back everything needed to understand it:
 
 - a **knowledge pack** – structured facts an agent can answer any question from (`model.json`, CSVs, `agent-brief.md`)
-- **documentation** for business users and the tech team – one offline HTML file and the same content as Markdown, with an interactive data model diagram, data glossary, page-by-page description, DAX catalog with dependencies, lineage from source to visual, Power Query sources and a model health check
+- **documentation** for business users and the tech team – one offline HTML file and the same content as Markdown, opening with the model in a few sentences, an interactive data model diagram (click a table for its columns, measures and joins) and a lineage explorer (what an object is built from, what changes when it changes), followed by data glossary, page-by-page description, DAX catalog with dependencies, lineage from source to visual, Power Query sources and a model health check
 - **safe change impact** for every measure and column: which measures, visuals and pages change if it changes, direct and indirect, with the dependency path to each visual (e.g. `Engagement[Opens] → [Total Opens] → [Open Rate] → Card 'Open rate'`)
 - **honest reference status**: report fields are *verified*, *report measure* (defined in the report), *unresolved* (not proven broken) or *observed external* (live connection); thin reports get an *observed model* reconstructed from what they use
 - a **query CLI** for the questions that come up when nobody remembers how the semantic layer works: how is this measure calculated, how are these tables joined, what breaks if I change this column, what is unused
@@ -16,7 +16,7 @@ Semantic models grow over years. Measures pile up, relationships get bi-directio
 
 ## Install on a locked-down PC (copy and paste, no clone)
 
-The whole tool also exists as **one file**: [`single-file/pbip_explainer.py`](single-file/pbip_explainer.py) (about 340 KB, Python 3.9+ standard library only).
+The whole tool also exists as **one file**: [`single-file/pbip_explainer.py`](single-file/pbip_explainer.py) (about 450 KB, Python 3.9+ standard library only).
 
 1. Open the file on GitHub and click **Copy raw file**.
 2. At work, create an empty file `pbip_explainer.py` (any folder, e.g. `Documents\pbip-explainer`) and paste.

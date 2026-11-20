@@ -35,6 +35,7 @@ from pbipx import __version__  # noqa: E402
 from pbipx import docs as _docs  # noqa: E402
 from pbipx import package as _package  # noqa: E402
 from pbipx import portfolio as _portfolio  # noqa: E402
+from pbipx.analysis import PRIORITY_RULE, finding_impact_text  # noqa: E402
 from pbipx.pack import extract, load_pack  # noqa: E402
 from pbipx.query import Q  # noqa: E402
 
@@ -44,7 +45,7 @@ EMBEDDED_INDEX: "str | None" = None
 DEFAULT_DATA_DIR = ROOT / "work" / "ui-runs"
 MAX_UPLOAD = 1024 ** 3          # 1 GB zip
 RUN_ID = re.compile(r"^[A-Za-z0-9._-]{1,120}$")
-QUERY_COMMANDS = {"summary", "find", "measure", "table", "column", "page", "path", "impact", "unused", "findings"}
+QUERY_COMMANDS = {"summary", "find", "measure", "table", "column", "page", "path", "impact", "unused", "findings", "about"}
 _lock = threading.Lock()
 
 
@@ -147,10 +148,12 @@ def _summary(pack: dict, d: Path, files: list) -> dict:
     findings = []
     for m in models:
         st = m["analysis"]["stats"]
-        for k in ("tables", "measures", "relationships", "columns", "roles"):
-            stats[k] = stats.get(k, 0) + st[k]
+        for k in ("tables", "measures", "relationships", "columns", "roles", "dataVisuals"):
+            stats[k] = stats.get(k, 0) + st.get(k, 0)
         findings += [{"severity": f["severity"], "code": f["code"], "message": f["message"],
-                      "objects": f["objects"][:8], "advice": f.get("advice")} for f in m["analysis"]["findings"]]
+                      "objects": f["objects"][:8], "more": max(len(f["objects"]) - 8, 0), "advice": f.get("advice"),
+                      "priority": f.get("priority"), "impact": finding_impact_text(f),
+                      "reach": (f.get("impact") or {}).get("visuals", 0)} for f in m["analysis"]["findings"]]
     rel = lambda p: Path(p).resolve().relative_to(d.resolve()).as_posix()  # noqa: E731
     out_files = {"html": None, "md": None, "svg": []}
     for f in files:
@@ -160,7 +163,7 @@ def _summary(pack: dict, d: Path, files: list) -> dict:
             out_files["md"] = rel(f)
         elif f.suffix == ".svg":
             out_files["svg"].append(rel(f))
-    return {"title": title, "stats": stats, "findings": findings, "files": out_files,
+    return {"title": title, "stats": stats, "findings": findings, "priorityRule": PRIORITY_RULE, "files": out_files,
             "pages": [p["displayName"] for r in reports for p in r["pages"]],
             "liveConnection": any((r.get("semanticModelRef") or {}).get("type") == "byConnection" for r in reports),
             "modelFormat": ", ".join(m["format"].upper() for m in models),
@@ -170,12 +173,40 @@ def _summary(pack: dict, d: Path, files: list) -> dict:
 def names(pack: dict) -> dict:
     """Object names for autocomplete in the UI."""
     tabs = [t for m in pack["semanticModels"] for t in m["tables"] if not t.get("isAutoDateTable")]
+    ctx = _docs.Ctx(pack)
+    by_role = [t["name"] for m in pack["semanticModels"] for t in _docs._tables_sorted(m)]
     return {
+        "top": [n for n, _ in _docs.top_measures(ctx, 6)],           # the measures most visuals depend on
+        "tablesByRole": by_role,                                     # fact tables first
         "measures": sorted({me["name"] for t in tabs for me in t["measures"]}, key=str.lower),
         "tables": sorted({t["name"] for t in tabs}, key=str.lower),
         "columns": sorted({f"{t['name']}[{c['name']}]" for t in tabs for c in t["columns"]}, key=str.lower),
         "pages": [p["displayName"] for r in pack["reports"] for p in r["pages"]],
     }
+
+
+def doc_anchor(d: Path, ref: dict) -> str:
+    """Where the documentation of this run describes the object (from the search index inside the HTML)."""
+    try:
+        html = next((d / "docs").glob("*-documentation.html")).read_text(encoding="utf-8")
+        index = json.loads(re.search(r'id="search-index">(.*?)</script>', html, re.S).group(1))
+    except (StopIteration, OSError, AttributeError, ValueError):
+        return ""
+    for x in index:
+        kind = str(x.get("k", ""))
+        if x.get("n") != ref.get("n"):
+            continue
+        if kind == ref.get("k") or (ref.get("k") == "page" and kind.startswith("page")
+                                    and (not ref.get("report") or kind in ("page", f"page · {ref['report']}"))):
+            return str(x.get("a") or "")
+    return ""
+
+
+def _enrichment(d: Path):
+    try:
+        return json.loads((d / "enrichment.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
 
 
 def knowledge_zip(d: Path) -> bytes:
@@ -427,7 +458,19 @@ class Handler(BaseHTTPRequestHandler):
         if cmd not in QUERY_COMMANDS:
             return self._error(400, "Unknown command")
         try:
-            q = Q(load_pack(d))
+            q = Q(load_pack(d), _enrichment(d))
+            if cmd == "about" or (req.get("structured") and cmd in ("path", "unused")):
+                if cmd == "about":
+                    ans = q.answer(args[0] if args else "")
+                elif not q.model:
+                    ans = q.answer("")
+                elif cmd == "path":
+                    ans = q.answer_path(args[0], args[1]) if len(args) == 2 else q.answer("")
+                else:
+                    ans = q.answer_unused()
+                if ans.get("ref"):
+                    ans["anchor"] = doc_anchor(d, ans["ref"])
+                return self._json({"answer": ans, "text": ans["text"]})
             if not q.model and cmd not in ("summary", "find", "page"):
                 return self._json({"text": "This package has no semantic model (live connection), so only "
                                            "summary, find and page work."})

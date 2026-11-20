@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Regression tests. Run: python3 tests/test_pbipx.py  (stdlib unittest, no installs)."""
+import copy
 import json
 import re
 import shutil
@@ -253,7 +254,7 @@ class EndToEndTests(unittest.TestCase):
         self.assertEqual((loc["priority"], loc["impact"]["visuals"]), ("high", 2))
         out = self.q.findings("high")
         self.assertIn("bidirectional-relationship", out)
-        self.assertIn("impact: Affects 7 visual(s) on 1 page(s): Overview.", out)
+        self.assertIn("impact: Affects 7 visuals on 1 page: Overview.", out)
         self.assertNotIn("unused-measures", out)
         self.assertIn("high|medium|low", self.q.findings("urgent"))
 
@@ -282,6 +283,72 @@ class EndToEndTests(unittest.TestCase):
         self.assertEqual(statuses, {"observedExternal", "reportMeasure"})
         files = docs.build(pk, out / "docs")
         self.assertIn("Observed model (live connection)", files[0].read_text(encoding="utf-8"))
+
+    def test_docs_measures_are_collapsed_and_filterable(self):
+        files = docs.build(self.pack, self.tmp / "campaign-measures" / "docs")
+        html = files[1].read_text(encoding="utf-8")
+        cards = dict(re.findall(r'<details class="measure" id="([^"]+)"([^>]*)>', html))
+        self.assertEqual(len(cards), 10)
+        self.assertFalse([i for i, attrs in cards.items() if "open" in re.sub(r'"[^"]*"', "", attrs)])   # one line each until opened
+        self.assertIn('data-used="0"', cards["m-old-bounce-rate"])
+        self.assertIn('data-used="1"', cards["m-open-rate"])
+        self.assertIn('data-folder="Rates"', cards["m-open-rate"])
+        summary = re.search(r'<details class="measure" id="m-open-rate"[^>]*><summary>(.*?)</summary>', html, re.S).group(1)
+        self.assertIn("Open Rate", summary)
+        self.assertIn("Share of recipients who opened the message.", summary)   # the line says what the measure is
+        self.assertIn("1 visual", summary)                                      # ... and how far it reaches
+        body = re.search(r'<details class="measure" id="m-open-rate".*?</details>', html, re.S).group(0)
+        self.assertIn("DIVIDE", body)                                           # the formula is inside the card
+        self.assertIn('id="mfilter"', html)                                     # filter: text, used / not used, folder
+        self.assertIn('data-used="0">Not used', html)
+        self.assertIn("beforeprint", html)                                      # printing opens every card
+
+    def test_findings_read_like_sentences(self):
+        fs = {f["code"]: f for f in self.model["analysis"]["findings"]}
+        for f in fs.values():
+            self.assertNotIn("(s)", f["message"], f["code"])                 # "1 relationship filters", not "1 relationship(s) filter"
+        self.assertEqual(fs["bidirectional-relationship"]["message"], "1 relationship filters in both directions.")
+        self.assertEqual(fs["unused-measures"]["message"], "1 measure is not used by the packaged report.")
+        self.assertEqual(fs["unresolved-dax-reference"]["objects"], ["Engagement[Bounces] in [Old Bounce Rate]"])   # no internal ids
+        files = docs.build(self.pack, self.tmp / "campaign-health" / "docs")
+        html = files[1].read_text(encoding="utf-8")
+        health = re.search(r'<section id="health">(.*?)</section>', html, re.S).group(1)
+        text = re.sub(r"<[^>]+>", " ", health)
+        self.assertNotIn("(s)", text)
+        self.assertNotIn("bidirectional-relationship", text)                 # the code is a tooltip, not the headline
+        self.assertIn('title="bidirectional-relationship"', health)
+        self.assertIn('<a href="#m-old-bounce-rate">', health)               # objects lead to their description
+        self.assertIn('<a href="#c-engagement-division-key">', health)
+
+    def test_thin_report_docs_have_no_empty_sections(self):
+        out = self.tmp / "thin-docs"
+        extract(EXAMPLES / "thin-report", out)
+        files = docs.build(load_pack(out), out / "docs")
+        md, html = files[0].read_text(encoding="utf-8"), files[1].read_text(encoding="utf-8")
+        sections = dict(re.findall(r'<section id="([^"]+)">(.*?)</section>', html, re.S))
+        # without the model there is nothing to say about tables, DAX, sources or health: no bare headings
+        self.assertEqual(list(sections), ["overview", "observed", "pages", "appendix"])
+        for sid, body in sections.items():
+            self.assertGreater(len(re.sub(r"<[^>]+>", " ", body).split()), 12, sid)
+        self.assertIn('<a href="#observed">', html)                  # what the report uses of the model has its own nav entry
+        self.assertIn("Open Rate", sections["observed"])
+        self.assertNotIn("Observed model", sections["pages"])
+        self.assertIn("not in the package", sections["overview"])    # and the overview says what is missing and why
+        for href in re.findall(r'href="#([^"]+)"', html):
+            self.assertIn(f'id="{href}"', html, href)                # no link into a section that is not there
+        # Markdown: the same, and the contents list matches the headings
+        self.assertIsNone(re.search(r"^## [^\n]+\n\s*## ", md, re.M))
+        heads = re.findall(r"^## (.+)$", md, re.M)
+        self.assertEqual(heads, ["Contents", "Overview", "Observed model (live connection)", "Report pages", "Appendix"])
+        self.assertEqual(re.findall(r"^- \[(.+?)\]\(#", md, re.M), heads[1:])
+
+    def test_full_model_docs_keep_all_sections(self):
+        files = docs.build(self.pack, self.tmp / "campaign-sections" / "docs")
+        html = files[1].read_text(encoding="utf-8")
+        self.assertEqual(re.findall(r'<section id="([^"]+)">', html),
+                         ["overview", "model", "lineage", "pages", "glossary", "tables", "measures", "security", "sources", "health", "appendix"])
+        for href in re.findall(r'href="#([^"]+)"', html):
+            self.assertIn(f'id="{href}"', html, href)
 
     def test_queries(self):
         self.assertIn("USERELATIONSHIP", self.q.measure("Clicks by Send Date"))
@@ -315,11 +382,146 @@ class EndToEndTests(unittest.TestCase):
         self.assertIn('<svg xmlns="http://www.w3.org/2000/svg" class="erd"', html)
         self.assertIn('<span class="prio high">high priority</span>', html)
         self.assertIn("Basis: visuals that read either table", html)
-        self.assertIn("*Impact:* Affects 7 visual(s) on 1 page(s): Overview.", md)
+        self.assertIn("*Impact:* Affects 7 visuals on 1 page: Overview.", md)
         # self-contained: no external scripts, stylesheets or fonts
         self.assertIsNone(re.search(r'(src|href)="https?://', html))
         self.assertTrue((self.tmp / "campaign" / "docs" / "model-diagram.svg").is_file())
         json.loads(re.search(r'id="search-index">(.*?)</script>', html, re.S).group(1))
+
+    def test_docs_brief_and_section_order(self):
+        files = docs.build(self.pack, self.tmp / "campaign-brief" / "docs")
+        html = files[1].read_text(encoding="utf-8")
+        md = files[0].read_text(encoding="utf-8")
+        brief = dict(docs.model_brief(docs.Ctx(self.pack)))
+        self.assertIn("Engagement", brief["Model"])                 # the fact table is named
+        self.assertIn("7 tables", brief["Model"])
+        self.assertIn("10 measures", brief["Measures"])
+        self.assertIn("Total Opens (5 visuals)", brief["Measures"])
+        self.assertIn("Databricks", brief["Sources"])
+        self.assertIn("3 pages (1 hidden)", brief["Report"])
+        self.assertIn("both directions", brief["Worth knowing"])
+        self.assertIn('id="brief"', html)
+        self.assertIn("**In brief** *(auto)*", md)
+        self.assertNotIn("see the skill", html)                     # no developer instruction as the first sentence
+        self.assertIn(".embed header.doc", html)                    # inside the app the docs drop their own title block
+        self.assertIn("embed=1", html)
+        # the visual explanation comes first, the reference sections after it
+        pos = [html.index(f'<section id="{s}"') for s in ("overview", "model", "lineage", "pages", "glossary", "tables", "measures")]
+        self.assertEqual(pos, sorted(pos))
+
+    def test_docs_diagram_panel_and_lineage_graph(self):
+        files = docs.build(self.pack, self.tmp / "campaign-lineage" / "docs")
+        html = files[1].read_text(encoding="utf-8")
+        panel = json.loads(re.search(r'class="erd-data">(.*?)</script>', html, re.S).group(1))
+        self.assertIn("Opens", [c[0] for c in panel["Engagement"]["c"]])
+        self.assertIn("Open Rate", [m[0] for m in panel["_Measures"]["m"]])
+        self.assertTrue(any("Date[Date]" in j for j in panel["Engagement"]["j"]))
+        self.assertIn("e.ctrlKey", html)                            # the wheel zooms only with Ctrl, the page keeps scrolling
+        self.assertIn('tabindex="0"', html)                         # tables in the diagram are reachable by keyboard
+        g = json.loads(re.search(r'id="lineage-data">(.*?)</script>', html, re.S).group(1))
+        ids = [n[0] for n in g["n"]]
+        edges = {(ids[a], ids[b]) for a, b in g["e"]}
+        for e in (("c:Engagement[Opens]", "m:Total Opens"), ("m:Total Opens", "m:Open Rate"),
+                  ("m:Total Opens", "r:Opens per Recipient"), ("m:Open Rate", "v:Overview/kpiOpenRate"),
+                  ("r:Opens per Recipient", "v:Overview/kpiOpensPerRecipient")):
+            self.assertIn(e, edges)
+        self.assertIn('data-node="m:Open Rate"', html)              # every measure card opens the graph on itself
+        # the graph reaches the same visuals as the change impact shown on the cards
+        out = {}
+        for a, b in g["e"]:
+            out.setdefault(a, []).append(b)
+        for t in self.pack["semanticModels"][0]["tables"]:
+            for me in t["measures"]:
+                start = ids.index("m:" + me["name"])
+                seen, todo = {start}, [start]
+                while todo:
+                    for y in out.get(todo.pop(), []):
+                        if y not in seen:
+                            seen.add(y)
+                            todo.append(y)
+                visuals = sum(1 for i in seen if g["n"][i][2] == "v")
+                self.assertEqual(visuals, me["impact"]["counts"]["visuals"], me["name"])
+
+    def test_docs_ids_unique_when_pages_share_a_name(self):
+        pack = copy.deepcopy(self.pack)
+        second = copy.deepcopy(pack["reports"][0])
+        second["name"] = "Second report"                             # same page names as the first report
+        pack["reports"].append(second)
+        html = docs.render_html(docs.Ctx(pack))
+        ids = re.findall(r'\sid="([^"]+)"', html)
+        self.assertEqual(sorted({i for i in ids if ids.count(i) > 1}), [])
+        targets = re.findall(r'<li class="[^"]*"><a href="#([^"]+)"', html)
+        self.assertEqual(len(targets), len(set(targets)))            # every nav entry leads to its own place
+        for t in targets:
+            self.assertIn(t, ids)
+
+    def test_docs_search_reaches_the_column(self):
+        files = docs.build(self.pack, self.tmp / "campaign-search" / "docs")
+        html = files[1].read_text(encoding="utf-8")
+        idx = json.loads(re.search(r'id="search-index">(.*?)</script>', html, re.S).group(1))
+        col = next(x for x in idx if x["n"] == "Engagement[Opens]")
+        table = next(x for x in idx if x["n"] == "Engagement" and x["k"] == "table")
+        self.assertNotEqual(col["a"], table["a"])                    # the hit is the column row, not the top of the table
+        self.assertIn(f'<tr id="{col["a"]}"', html)
+        self.assertIn("ArrowDown", html)                             # arrow keys and Enter work in the search box
+
+    def test_docs_do_not_show_embedded_data(self):
+        files = docs.build(self.pack, self.tmp / "campaign-embedded" / "docs")
+        md, html = files[0].read_text(encoding="utf-8"), files[1].read_text(encoding="utf-8")
+        exprs = [p["expression"] for t in self.pack["semanticModels"][0]["tables"] for p in t["partitions"] if p.get("expression")]
+        blobs = [b for e in exprs for b in re.findall(r'Binary\.FromText\(\s*"([^"]+)"', e)]
+        self.assertTrue(blobs)                                       # the example has an Enter-data table
+        for b in blobs:
+            self.assertNotIn(b, html)
+            self.assertNotIn(b, md)
+        self.assertIn("embedded data not shown", html)
+        self.assertIn("embedded data not shown", md)
+
+    def test_answers_for_the_app(self):
+        q = Q(self.pack)
+
+        def refs(a):
+            out = []
+
+            def walk(items):
+                for i in items:
+                    if i.get("ref"):
+                        out.append((i["ref"]["k"], i["ref"]["n"]))
+                    walk(i.get("children") or [])
+            for b in a["blocks"]:
+                walk(b.get("items") or [])
+            return out
+
+        a = q.answer("open rate")                                    # no question type needed, case does not matter
+        self.assertEqual((a["kind"], a["title"]), ("Measure", "Open Rate"))
+        labels = [b["label"] for b in a["blocks"]]
+        for label in ("Formula (DAX)", "Built from", "Shown in", "If it changes"):
+            self.assertIn(label, labels)
+        self.assertIn(("measure", "Total Opens"), refs(a))
+        self.assertIn(("page", "Overview"), refs(a))
+        self.assertIn("DIVIDE", a["text"])                           # plain text for the Copy button
+        self.assertEqual(q.answer("Engagement[Opens]")["kind"], "Column")
+        self.assertIn(("measure", "Total Opens"), refs(q.answer("Engagement[Opens]")))
+        t = q.answer("Engagement (table)")
+        self.assertEqual((t["kind"], t["title"]), ("Table", "Engagement"))
+        self.assertIn(("column", "Engagement[Opens]"), refs(t))
+        self.assertEqual(q.answer("Overview (page)")["kind"], "Page")
+        # a typo gets suggestions, not a command-line hint
+        miss = q.answer("Opnes")
+        self.assertEqual(miss["kind"], "Search")
+        self.assertIn(("column", "Engagement[Opens]"), refs(miss))
+        self.assertNotIn("Try: find", json.dumps(miss))
+        self.assertEqual(q.answer("")["kind"], "Search")
+        self.assertEqual(q.answer("zzzz-nothing")["kind"], "Search")
+        # a name that is both a table and a column lets the user choose
+        both = q.answer("Division")
+        self.assertEqual(both["kind"], "Search")
+        self.assertTrue({("table", "Division"), ("column", "Division[Division]")} <= set(refs(both)))
+        path = q.answer_path("Division", "Campaign")
+        self.assertEqual(path["kind"], "Join")
+        self.assertIn(("table", "Engagement"), refs(path))
+        self.assertEqual(q.answer_path("Division", "Nope")["kind"], "Search")
+        self.assertIn(("measure", "Old Bounce Rate"), refs(q.answer_unused()))
 
 
 class SafetyTests(unittest.TestCase):
