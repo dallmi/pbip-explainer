@@ -717,6 +717,12 @@ code{background:var(--row);padding:0 3px;border-radius:2px}
 pre{background:var(--page);border-left:2px solid var(--g2);padding:10px 14px;overflow:auto;margin:6px 0 10px;line-height:1.45}
 pre .c{color:var(--g4);font-style:italic}pre .s{color:#946F29}pre .k{color:var(--bordeaux);font-weight:600}
 pre .f{color:#2E476B;font-weight:600}pre .r{color:#295B40}pre a.m{color:#295B40;text-decoration-color:#7FA88F}
+.codebox{display:flex;align-items:flex-start;gap:6px}
+.codebox pre{flex:1;min-width:0}
+.copy{flex:none;margin-top:6px;font:inherit;font-size:11.5px;padding:1px 8px;border:1px solid var(--g2);background:var(--bg);color:var(--g5);border-radius:2px;cursor:pointer;opacity:.75}
+.codebox:hover .copy,.copy:focus{opacity:1}
+.copy:hover{border-color:var(--g6);color:#000}
+.copy.done{border-color:var(--ok);color:var(--ok);opacity:1}
 .badge{display:inline-block;font-size:10.5px;padding:0 6px;border:1px solid var(--g2);border-radius:2px;color:var(--g5);margin-left:6px;vertical-align:1px;white-space:nowrap}
 .badge.ai{border-color:var(--bronze);color:#6C5312;background:#FBF6EA}
 .badge.auto{border-color:var(--g2);color:var(--g4)}
@@ -762,7 +768,7 @@ summary{cursor:pointer;color:var(--g5);font-size:12.5px}
 .pagegrid .vb.deco{background:transparent;border-style:dotted;color:transparent}
 .az a{display:inline-block;min-width:20px;text-align:center;font-size:12.5px;text-decoration:none;color:var(--g5)}
 @media (max-width:900px){.layout{grid-template-columns:1fr}nav{position:static;height:auto;border-right:0;border-bottom:1px solid var(--surface)}main{padding:20px 16px}}
-@media print{nav,.dtools{display:none}.layout{display:block}main{max-width:none;padding:0}.diagram{height:auto;border:0}h2{break-before:page}}
+@media print{nav,.dtools,.copy{display:none}.layout{display:block}main{max-width:none;padding:0}.diagram{height:auto;border:0}h2{break-before:page}}
 """
 
 JS = r"""
@@ -804,6 +810,19 @@ document.querySelectorAll('.diagram').forEach(box => {
   box.querySelector('[data-z="in"]').onclick=()=>zoom(1/1.25);
   box.querySelector('[data-z="out"]').onclick=()=>zoom(1.25);
   box.querySelector('[data-z="fit"]').onclick=()=>{vb={...orig}; set(); clickAt(document.body);};
+});
+// copy buttons on code blocks (DAX, M, SQL)
+const copyText=(t)=>{ if(navigator.clipboard && window.isSecureContext) return navigator.clipboard.writeText(t);
+  return new Promise((ok,fail)=>{ const ta=document.createElement('textarea'); ta.value=t; ta.setAttribute('readonly','');
+    ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta); ta.select();
+    try{ document.execCommand('copy')?ok():fail(); }catch(e){ fail(e); } finally{ ta.remove(); } }); };
+document.querySelectorAll('main pre').forEach(pre => {
+  const box=document.createElement('div'); box.className='codebox'; pre.parentNode.insertBefore(box, pre); box.appendChild(pre);
+  const b=document.createElement('button'); b.type='button'; b.className='copy'; b.textContent='Copy'; b.title='Copy to clipboard';
+  b.onclick=()=>{ copyText(pre.textContent).then(()=>{ b.textContent='Copied'; b.classList.add('done'); },()=>{ b.textContent='Press Ctrl+C';
+      const r=document.createRange(); r.selectNodeContents(pre); const s=getSelection(); s.removeAllRanges(); s.addRange(r); })
+    .finally(()=>setTimeout(()=>{ b.textContent='Copy'; b.classList.remove('done'); },1600)); };
+  box.appendChild(b);
 });
 // active nav item
 const links=[...document.querySelectorAll('nav li a')]; const secs=links.map(a=>document.getElementById(a.getAttribute('href').slice(1))).filter(Boolean);
