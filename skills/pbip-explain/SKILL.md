@@ -63,6 +63,7 @@ python3 -I "$S" query work/<name> <command> [args]
 | How are tables A and B connected / which join keys? | `path <A> <B>` |
 | What breaks if I change or remove X? | `impact <M | T[C] | T>` |
 | What can be cleaned up? | `unused`, `findings` |
+| Which problems hit the report? | `findings high` (priority + visuals reached) |
 
 How to answer (more in `references/answering-questions.md`):
 - **Facts first, with the object names**: `[Open Rate]`, `Engagement[Date]`, page *Overview*. Quote DAX when the question is about logic.

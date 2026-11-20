@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 from . import diagram
-from .analysis import ROLE_LABELS
+from .analysis import PRIORITY_RULE, ROLE_LABELS, finding_impact_text
 
 HIDDEN_BADGE = '<span class="badge hid">hidden</span>'
 PROV_LABEL = {"model": "", "ai": "AI-drafted · review", "auto": "auto"}
@@ -594,10 +594,17 @@ def render_md(ctx: Ctx) -> str:
     a("")
     for m in ctx.models:
         an = m["analysis"]
+        if an["findings"] and "priority" in an["findings"][0]:
+            a(f"*Sorted by priority: {PRIORITY_RULE}.*")
+            a("")
         for f in an["findings"]:
-            a(f"- **{f['severity'].upper()}** — {f['message']}" + (f" {f['advice']}" if f.get("advice") else ""))
+            pr = f"{f['priority'].upper()} priority · " if f.get("priority") else ""
+            a(f"- **{pr}{f['severity'].upper()}** — {f['message']}" + (f" {f['advice']}" if f.get("advice") else ""))
             for o in f["objects"][:15]:
                 a(f"  - {o}")
+            imp = finding_impact_text(f)
+            if imp:
+                a(f"  - *Impact:* {imp}" + (f" Basis: {f['impact']['basis']}." if (f.get("impact") or {}).get("visuals") else ""))
         a("")
         a(f"*{an['unused']['note']}*")
         a("")
@@ -739,6 +746,10 @@ pre .f{color:#2E476B;font-weight:600}pre .r{color:#295B40}pre a.m{color:#295B40;
 .find .sev{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--g4)}
 .find.error .sev{color:var(--bad)}.find.warning .sev{color:#8C5B00}
 .find ul{margin:4px 0 0 18px;font-size:12.5px;color:var(--g5)}
+.prio{font-weight:700}.prio.high{color:var(--primary)}.prio.medium{color:#8C5B00}.prio.low{color:var(--g4)}
+.fimp{margin-top:6px;font-size:12.5px;color:var(--g5)}.fimp b{font-size:11px;letter-spacing:.06em;text-transform:uppercase;margin-right:6px;color:var(--g4)}
+.fimp.hit{color:var(--g6)}.fimp.hit b{color:var(--primary)}
+.fimp .ex,.fimp .basis{display:block;color:var(--g4)}.fimp .basis{font-size:11.5px}
 .diagram{border:1px solid var(--surface);position:relative;overflow:hidden;height:620px;background:var(--bg);cursor:grab}
 .diagram svg{width:100%;height:100%}
 .dtools{position:absolute;right:8px;top:8px;display:flex;gap:4px;z-index:2}
@@ -1234,11 +1245,31 @@ def render_html(ctx: Ctx) -> str:
         an = m["analysis"]
         if not an["findings"]:
             h('<p class="muted">No findings.</p>')
+        elif "priority" in an["findings"][0]:
+            fs = an["findings"]
+            nh = sum(1 for f in fs if f["priority"] == "high")
+            hv = sum((f.get("impact") or {}).get("visuals", 0) for f in fs if f["priority"] == "high")
+            h(f'<p class="small"><b>{nh} high-priority finding(s)</b>'
+              + (f', reaching {hv} visual(s) in total (a visual can count under several findings).' if hv else '.')
+              + f' <span class="muted">Sorted by priority: {escape(PRIORITY_RULE)}.</span></p>')
         for f in an["findings"]:
-            h(f'<div class="find {f["severity"]}"><div class="sev">{escape(f["severity"])} · {escape(f["code"])}</div>'
+            pr = (f'<span class="prio {escape(f["priority"])}">{escape(f["priority"])} priority</span> · '
+                  if f.get("priority") else "")
+            h(f'<div class="find {f["severity"]}"><div class="sev">{pr}{escape(f["severity"])} · {escape(f["code"])}</div>'
               f'<div>{escape(f["message"])}</div>' + (f'<div class="small muted">{escape(f["advice"])}</div>' if f.get("advice") else ""))
             if f["objects"]:
                 h("<ul>" + "".join(f"<li>{escape(str(o))}</li>" for o in f["objects"][:25]) + "</ul>")
+            imp = finding_impact_text(f)
+            if imp:
+                i = f.get("impact") or {}
+                cls = "fimp hit" if i.get("visuals") else "fimp"
+                h(f'<div class="{cls}"><b>Impact</b> {escape(imp)}')
+                if i.get("visuals"):
+                    more = i["visuals"] - len(i["examples"])
+                    h('<span class="ex">e.g. ' + "; ".join(escape(x) for x in i["examples"])
+                      + (f" and {more} more" if more > 0 else "") + "</span>"
+                      + f'<span class="basis">Basis: {escape(i["basis"])}.</span>')
+                h("</div>")
             h("</div>")
         h(f'<p class="small muted">{escape(an["unused"]["note"])}</p>')
         if an["unused"]["columns"]:

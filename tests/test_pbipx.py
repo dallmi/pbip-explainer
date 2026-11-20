@@ -15,7 +15,7 @@ SCRIPTS = ROOT / "skills" / "pbip-explain" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 
 from pbipx import dax, mquery, tmdl  # noqa: E402
-from pbipx.analysis import relationship_path  # noqa: E402
+from pbipx.analysis import _attach_impact, relationship_path  # noqa: E402
 from pbipx.pack import extract, load_pack  # noqa: E402
 from pbipx.query import Q  # noqa: E402
 from pbipx.unpack import UnsafeArchive, safe_extract  # noqa: E402
@@ -230,6 +230,44 @@ class EndToEndTests(unittest.TestCase):
         sev = {x["code"]: x["severity"] for x in self.model["analysis"]["findings"]}
         self.assertEqual(sev["unresolved-report-reference"], "warning")
 
+    def test_finding_impact(self):
+        fs = self.model["analysis"]["findings"]
+        by = {f["code"]: f for f in fs}
+        prio = [f["priority"] for f in fs]
+        self.assertEqual(prio, sorted(prio, key=["high", "medium", "low"].index))       # sorted by priority
+        # relationship: visuals reading either table on pages where both are used (Division slicer + Engagement visuals)
+        bi = by["bidirectional-relationship"]
+        self.assertEqual(bi["priority"], "high")
+        self.assertEqual(bi["impact"]["pages"], ["Overview"])
+        self.assertEqual(bi["impact"]["visuals"], 7)
+        self.assertIn("both tables", bi["impact"]["basis"])
+        un = by["unresolved-report-reference"]["impact"]
+        self.assertEqual(un["examples"], ["Table 'Campaigns' on 'Campaign Detail'"])
+        self.assertEqual(by["implicit-measures"]["impact"]["pages"], ["Overview"])
+        # only reaches an unused measure: a warning without report impact
+        self.assertEqual(by["unresolved-dax-reference"]["impact"]["visuals"], 0)
+        self.assertEqual(by["unresolved-dax-reference"]["priority"], "medium")
+        self.assertIsNone(by["unused-measures"]["impact"])
+        self.assertEqual(by["unused-measures"]["priority"], "low")
+        loc = next(f for f in self.legacy["semanticModels"][0]["analysis"]["findings"] if f["code"] == "local-file-source")
+        self.assertEqual((loc["priority"], loc["impact"]["visuals"]), ("high", 2))
+        out = self.q.findings("high")
+        self.assertIn("bidirectional-relationship", out)
+        self.assertIn("impact: Affects 7 visual(s) on 1 page(s): Overview.", out)
+        self.assertNotIn("unused-measures", out)
+        self.assertIn("high|medium|low", self.q.findings("urgent"))
+
+    def test_finding_impact_through_page_filter(self):
+        # a column used only as a page filter reaches every visual on that page
+        f = [{"severity": "warning", "code": "x", "message": "", "objects": [], "advice": None,
+              "_scope": ("objects", ["column:T[C]"])}]
+        vinfo = {f"visual:P1/{n}": {"report": "R", "page": "P1", "visual": n, "visualTitle": n, "visualType": "Card"}
+                 for n in ("a", "b")}
+        vinfo["visual:P2/c"] = {"report": "R", "page": "P2", "visual": "c", "visualTitle": "c", "visualType": "Card"}
+        _attach_impact(f, {"column:T[C]": {"page:P1"}}, vinfo, {}, {})
+        self.assertEqual((f[0]["impact"]["visuals"], f[0]["impact"]["pages"], f[0]["priority"]), (2, ["P1"], "high"))
+        self.assertNotIn("_scope", f[0])
+
     def test_thin_report(self):
         out = self.tmp / "thin"
         extract(EXAMPLES / "thin-report", out)
@@ -275,6 +313,9 @@ class EndToEndTests(unittest.TestCase):
                   "Engagement[Send Date]", "**Change impact.**", "Report-level measures"):
             self.assertIn(s, md)
         self.assertIn('<svg xmlns="http://www.w3.org/2000/svg" class="erd"', html)
+        self.assertIn('<span class="prio high">high priority</span>', html)
+        self.assertIn("Basis: visuals that read either table", html)
+        self.assertIn("*Impact:* Affects 7 visual(s) on 1 page(s): Overview.", md)
         # self-contained: no external scripts, stylesheets or fonts
         self.assertIsNone(re.search(r'(src|href)="https?://', html))
         self.assertTrue((self.tmp / "campaign" / "docs" / "model-diagram.svg").is_file())

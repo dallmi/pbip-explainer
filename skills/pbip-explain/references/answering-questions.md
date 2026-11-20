@@ -29,7 +29,7 @@ Never present an inference as a fact. No data is in a PBIP: do not state numbers
 
 **"Can I delete / rename X?"** `query impact X`. List measures, visuals and pages that depend on it. Remind: other reports on the same published model are not in the package.
 
-**"What is wrong with this model?"** `query findings`, then prioritise: errors (broken visuals) → ambiguity risks (bi-directional, many-to-many, inactive unused) → maintainability (implicit measures, missing descriptions, unused objects, local file sources).
+**"What is wrong with this model?"** `query findings` (already sorted by priority; `query findings high` for only the ones that hit the report). Lead with high-priority findings and the visuals they reach, then the rest: ambiguity risks (bi-directional, many-to-many, inactive unused) → maintainability (implicit measures, missing descriptions, unused objects, local file sources). The impact line says how the visuals were found; repeat that basis instead of claiming a visual is broken.
 
 **"Explain the report to a business user."** Use enrichment text if present (and say it was AI-drafted), otherwise page titles, text boxes, visual titles and measure names. Structure: purpose → pages → key metrics with plain definitions → how to filter.
 

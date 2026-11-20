@@ -98,7 +98,7 @@ pbip_explain.py run     <zip|folder|.pbip> --out <dir>   extract + docs
 pbip_explain.py extract <zip|folder|.pbip> --out <dir>   knowledge pack only
 pbip_explain.py docs    <dir> [--enrichment file]        rebuild docs (after editing enrichment.json)
 pbip_explain.py query   <dir> summary | find <text> | measure <M> | table <T> | column <T[C]> | page <P>
-                              | path <A> <B> | impact <M|T[C]|T> | unused | findings
+                              | path <A> <B> | impact <M|T[C]|T> | unused | findings [high|medium|low]
 ```
 
 ## Output

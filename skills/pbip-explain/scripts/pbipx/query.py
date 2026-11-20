@@ -4,7 +4,7 @@ from __future__ import annotations
 import re
 from typing import List, Optional
 
-from .analysis import ROLE_LABELS, relationship_path
+from .analysis import PRIORITY_RULE, ROLE_LABELS, finding_impact_text, relationship_path
 
 
 class Q:
@@ -229,11 +229,25 @@ class Q:
         return (f"{u['note']}\nUnused measures ({len(u['measures'])}): {', '.join(u['measures'])}\n"
                 f"Unreferenced columns ({len(u['columns'])}): {', '.join(u['columns'])}")
 
-    def findings(self) -> str:
-        out = []
-        for f in self.model["analysis"]["findings"]:
-            out.append(f"[{f['severity']}] {f['code']}: {f['message']}")
+    def findings(self, priority: str = "") -> str:
+        priority = priority.strip().lower()
+        if priority and priority not in ("high", "medium", "low"):
+            return "Use 'findings', or 'findings high|medium|low' to filter by priority."
+        fs = [f for f in self.model["analysis"]["findings"] if not priority or f.get("priority") == priority]
+        out = [f"Priority: {PRIORITY_RULE}."] if fs and "priority" in fs[0] else []
+        for f in fs:
+            tag = f"{f['priority']} | {f['severity']}" if f.get("priority") else f["severity"]
+            out.append(f"[{tag}] {f['code']}: {f['message']}")
             out.extend(f"    - {o}" for o in f["objects"][:20])
+            imp = finding_impact_text(f)
+            if imp:
+                out.append(f"    impact: {imp}")
+            if (f.get("impact") or {}).get("visuals"):
+                more = f["impact"]["visuals"] - len(f["impact"]["examples"])
+                out.append(f"    e.g. {'; '.join(f['impact']['examples'])}" + (f" and {more} more" if more > 0 else ""))
+                out.append(f"    basis: {f['impact']['basis']}")
             if f.get("advice"):
                 out.append(f"    advice: {f['advice']}")
-        return "\n".join(out) or "No findings."
+        if not fs:
+            return f"No {priority}-priority findings." if priority else "No findings."
+        return "\n".join(out)

@@ -6,7 +6,7 @@
   docs    <dir> [--enrichment file]          (re)build documentation from a knowledge pack + enrichment.json
   query   <dir> <command> [args]             look things up:
           summary | find <text> | measure <name> | table <name> | column <T[C]> | page <name>
-          path <tableA> <tableB> | impact <measure|T[C]|table> | unused | findings
+          path <tableA> <tableB> | impact <measure|T[C]|table> | unused | findings [high|medium|low]
   package <dir> [<dir> ...] --out pkg.zip [--name "..."]
                                              analysis package for SharePoint + Agent Builder over several
                                              analysed models (each <dir> = a run/extract output folder)
@@ -105,7 +105,7 @@ def main(argv=None) -> int:
           "measure": lambda: q.measure(" ".join(args)), "table": lambda: q.table(" ".join(args)),
           "column": lambda: q.column(" ".join(args)), "page": lambda: q.page(" ".join(args)),
           "path": lambda: q.path(args[0], args[1]), "impact": lambda: q.impact(" ".join(args)),
-          "unused": lambda: q.unused(), "findings": lambda: q.findings()}.get(cmd)
+          "unused": lambda: q.unused(), "findings": lambda: q.findings(" ".join(args))}.get(cmd)
     if not fn:
         raise SystemExit(f"Unknown query command '{cmd}'. See --help.")
     print(fn())

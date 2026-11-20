@@ -1,4 +1,4 @@
-# Knowledge pack schema (schemaVersion 1.0)
+# Knowledge pack schema (schemaVersion 1.1)
 
 `knowledge/model.json` is the single source of facts. The CSVs and `agent-brief.md` are views of it.
 
@@ -49,7 +49,9 @@
 
 ### Analysis
 
-`stats{}`, `findings[{severity: error|warning|info, code, message, objects[], advice}]`, `unresolvedReportReferences[]`, `referenceStatus{verified, reportMeasure, unresolved}`, `unresolvedDaxReferences[]`, `unused{measures[], columns[], note}`, `dependencies{objectId: [objectIds]}`.
+`stats{}`, `findings[{severity: error|warning|info, priority: high|medium|low, code, message, objects[], advice, impact}]`, `unresolvedReportReferences[]`, `referenceStatus{verified, reportMeasure, unresolved}`, `unresolvedDaxReferences[]`, `unused{measures[], columns[], note}`, `dependencies{objectId: [objectIds]}`.
+
+Finding `impact` = the report visuals the finding reaches: `{basis, visuals, pages[], examples[]}` (`visuals` is a count, `examples` the first five as "type 'title' on 'page'", `basis` says how they were found). `null` when the finding is not tied to visuals (e.g. auto date/time, missing descriptions, unused measures). How visuals are found depends on the finding: from the objects through dependent measures and page/report filters; for relationships, visuals that read either table on pages where both tables are used; for local file sources and an unmarked date table, visuals that read those tables. `priority`: high = an error, or a warning that reaches at least one visual; medium = any other warning, or an info finding that reaches a visual; low = the rest. Findings are sorted by priority, then severity, then visuals reached. Added in 1.1; packs from 1.0 have neither field.
 
 Object ids: `table:T`, `column:T[C]`, `measure:M`, `calcItem:T[I]`, `hierarchy:T[H]`, `role:R`, `expression:Q`, `relationship:<id>`, `page:P`, `visual:P/V`, `report:R`.
 

@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import List, Optional
 
 from . import KNOWLEDGE_SCHEMA_VERSION, __version__
-from .analysis import ROLE_LABELS, analyse
+from .analysis import ROLE_LABELS, analyse, finding_impact_text
 from .model import load_semantic_model
 from .report import load_report, observed_model
 from .unpack import discover, safe_extract
@@ -259,7 +259,9 @@ def agent_brief(pack: dict) -> str:
             a("### Findings")
             a("")
             for f in fs:
-                a(f"- **{f['severity']}** {f['message']}")
+                pr = f"{f['priority']} priority, " if f.get("priority") else ""
+                imp = finding_impact_text(f)
+                a(f"- **{pr}{f['severity']}** {f['message']}" + (f" {imp}" if imp else ""))
             a("")
     for rep in pack["reports"]:
         om = rep.get("observedModel")

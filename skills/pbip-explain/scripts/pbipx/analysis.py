@@ -387,6 +387,8 @@ def analyse(model: dict, reports: List[dict]) -> dict:
         t["source"] = _table_source(t, expr_by_name)
 
     # ---------------------------------------------------------------- report lineage
+    vis_tables: Dict[str, Set[str]] = {}
+    vis_types: Dict[str, Optional[str]] = {}
     for rep in reports:
         for p in rep["pages"]:
             pid = f"page:{p['displayName']}"
@@ -398,10 +400,14 @@ def analyse(model: dict, reports: List[dict]) -> dict:
                                  {_measure_table(measures, x[8:]) for x in cl if x.startswith("measure:")} - {None}),
             }
             for v in p["visuals"]:
-                vcl = closure([f"visual:{p['displayName']}/{v['name']}"])
+                vid = f"visual:{p['displayName']}/{v['name']}"
+                vcl = closure([vid])
                 v["tables"] = sorted({x[7:x.index("[")] for x in vcl if x.startswith("column:")})
+                vis_tables[vid] = set(v["tables"])
+                vis_types[vid] = v.get("type")
 
     findings = _findings(model, reports, broken, unresolved)
+    _attach_impact(findings, rev, vinfo, vis_tables, vis_types)
     stats = _stats(model, reports)
     return {
         "findings": findings, "unresolvedReportReferences": broken, "unresolvedDaxReferences": unresolved,
@@ -573,8 +579,113 @@ def _uniq(items: list) -> list:
 
 # ---------------------------------------------------------------------------- findings
 
-def _f(sev: str, code: str, msg: str, objects: Optional[list] = None, advice: Optional[str] = None) -> dict:
-    return {"severity": sev, "code": code, "message": msg, "objects": objects or [], "advice": advice}
+def _f(sev: str, code: str, msg: str, objects: Optional[list] = None, advice: Optional[str] = None,
+       scope: Optional[tuple] = None) -> dict:
+    """scope says which report visuals the finding reaches; _attach_impact resolves it:
+    ("objects", [ids]) | ("tablePairs", [(a, b)]) | ("tables", [names]) | ("visuals", [vids])
+    | ("places", [where dicts]) | ("visualTypes", (report, [types])). None = not tied to visuals."""
+    return {"severity": sev, "code": code, "message": msg, "objects": objects or [], "advice": advice, "_scope": scope}
+
+
+IMPACT_BASIS = {
+    "objects": "visuals that use these objects directly, through measures, or through page and report filters",
+    "tablePairs": "visuals that read either table of the relationship, on pages where both tables are used "
+                  "(slicers and cross-filtering connect the visuals of a page)",
+    "tables": "visuals that read from these tables",
+    "visuals": "the visuals named in the finding",
+    "places": "visuals with the unresolved field, plus every visual on a page or report filtered by it",
+    "visualTypes": "visuals of these types",
+}
+PRIORITY_RULE = ("high = an error, or a warning that reaches at least one report visual; medium = any other "
+                 "warning, or an info finding that reaches a visual; low = everything else")
+
+
+def _attach_impact(findings: List[dict], rev: Dict[str, Set[str]], vinfo: Dict[str, dict],
+                   vis_tables: Dict[str, Set[str]], vis_types: Dict[str, Optional[str]]) -> None:
+    """Resolve each finding's scope to the report visuals it reaches, then set priority and re-sort."""
+    by_page: Dict[str, Set[str]] = defaultdict(set)
+    by_report: Dict[str, Set[str]] = defaultdict(set)
+    for vid, w in vinfo.items():
+        by_page[w["page"]].add(vid)
+        by_report[w["report"]].add(vid)
+    page_tables: Dict[str, Set[str]] = defaultdict(set)
+    for vid, ts in vis_tables.items():
+        if vid in vinfo:
+            page_tables[vinfo[vid]["page"]] |= ts
+
+    def reach(starts: Iterable[str]) -> Set[str]:
+        starts = list(starts)
+        vis: Set[str] = set()
+        seen = set(starts)
+        dq = deque(starts)
+        while dq:
+            x = dq.popleft()
+            if x.startswith("visual:"):
+                vis.add(x)
+                continue
+            if x.startswith("page:"):        # reached through a page filter or drillthrough field
+                vis |= by_page.get(x[5:], set())
+                continue
+            if x.startswith("report:"):      # reached through a report-level filter
+                vis |= by_report.get(x[7:], set())
+                continue
+            for y in rev.get(x, ()):
+                if y not in seen:
+                    seen.add(y)
+                    dq.append(y)
+        return vis
+
+    def resolve(kind: str, arg) -> Set[str]:
+        if kind == "objects":
+            return reach(arg)
+        if kind == "tablePairs":
+            return {v for v, ts in vis_tables.items()
+                    if any({a, b} <= page_tables.get(vinfo.get(v, {}).get("page"), set()) and (a in ts or b in ts)
+                           for a, b in arg)}
+        if kind == "tables":
+            return {v for v, ts in vis_tables.items() if ts & set(arg)}
+        if kind == "visuals":
+            return {v for v in arg if v in vinfo}
+        if kind == "places":
+            out: Set[str] = set()
+            for w in arg:
+                if w.get("visual"):
+                    out.add(f"visual:{w['page']}/{w['visual']}")
+                elif w.get("page"):
+                    out |= by_page.get(w["page"], set())
+                elif w.get("report"):
+                    out |= by_report.get(w["report"], set())
+            return {v for v in out if v in vinfo}
+        if kind == "visualTypes":
+            rname, types = arg
+            return {v for v in by_report.get(rname, ()) if vis_types.get(v) in set(types)}
+        return set()
+
+    def vlabel(vid: str) -> str:
+        w = vinfo[vid]
+        return f"{w.get('visualType') or 'visual'} '{w.get('visualTitle') or w.get('visual')}' on '{w.get('page')}'"
+
+    for f in findings:
+        scope = f.pop("_scope", None)
+        if scope is None:
+            f["impact"] = None
+        else:
+            vis = resolve(*scope)
+            ordered = sorted(vis, key=lambda v: (vinfo[v].get("page") or "", vlabel(v)))
+            f["impact"] = {"basis": IMPACT_BASIS[scope[0]], "visuals": len(vis),
+                           "pages": sorted({vinfo[v]["page"] for v in vis if vinfo[v].get("page")}),
+                           "examples": [vlabel(v) for v in ordered[:5]]}
+        n = (f["impact"] or {}).get("visuals", 0)
+        if f["severity"] == "error" or (f["severity"] == "warning" and n):
+            f["priority"] = "high"
+        elif f["severity"] == "warning" or n:
+            f["priority"] = "medium"
+        else:
+            f["priority"] = "low"
+    prio = {"high": 0, "medium": 1, "low": 2}
+    sev = {"error": 0, "warning": 1, "info": 2}
+    findings.sort(key=lambda f: (prio[f["priority"]], sev.get(f["severity"], 3),
+                                 -((f["impact"] or {}).get("visuals", 0))))
 
 
 def _findings(model: dict, reports: List[dict], broken: list, unresolved: list) -> List[dict]:
@@ -586,12 +697,14 @@ def _findings(model: dict, reports: List[dict], broken: list, unresolved: list) 
                       f"{len(bi)} relationship(s) filter in both directions.",
                       [f"{r['fromTable']}[{r['fromColumn']}] ↔ {r['toTable']}[{r['toColumn']}]" for r in bi],
                       "Bi-directional filters can create ambiguous paths and slow queries. Keep them only where "
-                      "intended (e.g. bridge tables) and document why."))
+                      "intended (e.g. bridge tables) and document why.",
+                      scope=("tablePairs", [(r["fromTable"], r["toTable"]) for r in bi])))
     mm = [r for r in rels if r["cardinality"] == "*:*"]
     if mm:
         out.append(_f("warning", "many-to-many", f"{len(mm)} many-to-many relationship(s).",
                       [f"{r['fromTable']}[{r['fromColumn']}] — {r['toTable']}[{r['toColumn']}]" for r in mm],
-                      "Many-to-many relationships aggregate differently than users expect; check totals."))
+                      "Many-to-many relationships aggregate differently than users expect; check totals.",
+                      scope=("tablePairs", [(r["fromTable"], r["toTable"]) for r in mm])))
     inactive = [r for r in rels if not r["isActive"]]
     for r in inactive:
         if r["activatedByUserelationship"]:
@@ -606,7 +719,8 @@ def _findings(model: dict, reports: List[dict], broken: list, unresolved: list) 
     for r in mismatch:
         out.append(_f("warning", "relationship-type-mismatch",
                       f"Relationship {r['fromTable']}[{r['fromColumn']}] ({r['fromDataType']}) → "
-                      f"{r['toTable']}[{r['toColumn']}] ({r['toDataType']}) joins different data types."))
+                      f"{r['toTable']}[{r['toColumn']}] ({r['toDataType']}) joins different data types.",
+                      scope=("tablePairs", [(r["fromTable"], r["toTable"])])))
     missing = [r for r in rels if r["fromTable"] not in {t["name"] for t in model["tables"]}
                or r["toTable"] not in {t["name"] for t in model["tables"]}]
     for r in missing:
@@ -621,7 +735,8 @@ def _findings(model: dict, reports: List[dict], broken: list, unresolved: list) 
     if dates and not any((t.get("dataCategory") or "").lower() == "time" for t in dates):
         out.append(_f("info", "date-table-not-marked",
                       "A date table exists but is not marked as date table.", [t["name"] for t in dates],
-                      "Mark it as date table so time-intelligence functions behave predictably."))
+                      "Mark it as date table so time-intelligence functions behave predictably.",
+                      scope=("tables", [t["name"] for t in dates])))
 
     if broken:
         out.append(_f("warning", "unresolved-report-reference",
@@ -629,26 +744,30 @@ def _findings(model: dict, reports: List[dict], broken: list, unresolved: list) 
                       "report-level measures.",
                       [f"{b['field']} in {b['where']}" for b in broken[:20]],
                       "Status 'unresolved', not proven broken. If the packaged model is the one the report uses, "
-                      "these visuals show an error in Power BI: check for renamed or deleted fields."))
+                      "these visuals show an error in Power BI: check for renamed or deleted fields.",
+                      scope=("places", broken)))
     ur = [u for u in unresolved if not u["reference"].startswith("[")]
     if ur:
         out.append(_f("warning", "unresolved-dax-reference",
                       f"{len(ur)} DAX reference(s) could not be matched to a model object.",
-                      [f"{u['reference']} in {u['object']}" for u in ur[:20]]))
+                      [f"{u['reference']} in {u['object']}" for u in ur[:20]],
+                      scope=("objects", sorted({u["object"] for u in ur}))))
 
-    implicit = []
+    implicit, implicit_vis = [], set()
     for rep in reports:
         for p in rep["pages"]:
             for v in p["visuals"]:
                 for f in v["fields"]:
                     if f.get("implicit"):
+                        implicit_vis.add(f"visual:{p['displayName']}/{v['name']}")
                         implicit.append(f"{f.get('aggregation')} of {f['table']}[{f['name']}] in '{v['title'] or v['name']}' ({p['displayName']})")
     if implicit:
         out.append(_f("warning", "implicit-measures",
                       f"{len(implicit)} visual field(s) use implicit measures (column aggregated in the visual).",
-                      implicit[:20], "Replace with explicit measures so the logic is defined once and documented."))
+                      implicit[:20], "Replace with explicit measures so the logic is defined once and documented.",
+                      scope=("visuals", sorted(implicit_vis))))
 
-    keyish = []
+    keyish, keyish_ids = [], []
     for t in model["tables"]:
         if t["isAutoDateTable"]:
             continue
@@ -656,9 +775,11 @@ def _findings(model: dict, reports: List[dict], broken: list, unresolved: list) 
             if (c.get("dataType") or "").lower() in ("int64", "double", "decimal") and KEYISH.search(c["name"]) \
                     and (c.get("summarizeBy") or "").lower() not in ("none", "") and not c["isHidden"]:
                 keyish.append(f"{t['name']}[{c['name']}] (summarizeBy: {c.get('summarizeBy')})")
+                keyish_ids.append(cid(t["name"], c["name"]))
     if keyish:
         out.append(_f("info", "summarize-keys", f"{len(keyish)} visible ID/key/year column(s) are summed by default.",
-                      keyish[:20], "Set summarizeBy to none so they are not added up in visuals."))
+                      keyish[:20], "Set summarizeBy to none so they are not added up in visuals.",
+                      scope=("objects", keyish_ids)))
 
     no_desc = [m["name"] for t in model["tables"] for m in t["measures"] if not m.get("description") and not m["isHidden"]]
     total = sum(1 for t in model["tables"] for m in t["measures"] if not m["isHidden"])
@@ -670,23 +791,27 @@ def _findings(model: dict, reports: List[dict], broken: list, unresolved: list) 
     if unused_m:
         out.append(_f("info", "unused-measures", f"{len(unused_m)} measure(s) are not used by the packaged report(s).",
                       unused_m[:30], "Check other reports on the same model before deleting."))
-    calc_cols = [f"{t['name']}[{c['name']}]" for t in model["tables"] for c in t["columns"] if c["columnType"] == "calculated"]
+    calc = [(t["name"], c["name"]) for t in model["tables"] for c in t["columns"] if c["columnType"] == "calculated"]
+    calc_cols = [f"{tn}[{cn}]" for tn, cn in calc]
     if len(calc_cols) >= 10:
         out.append(_f("info", "many-calculated-columns", f"{len(calc_cols)} calculated columns.", calc_cols[:20],
-                      "Consider moving row-level logic upstream (Power Query or the source)."))
-    local_paths = []
+                      "Consider moving row-level logic upstream (Power Query or the source).",
+                      scope=("objects", [cid(tn, cn) for tn, cn in calc])))
+    local_paths, local_tables = [], set()
     for t in model["tables"]:
         for s in t["source"]["connectors"]:
             for a in s.get("arguments", []):
                 if re.match(r"^[A-Za-z]:\\|^\\\\", str(a)):
                     local_paths.append(f"{t['name']}: {a}")
+                    local_tables.add(t["name"])
     for e in model["expressions"]:
         v = (e.get("parameter") or {}).get("value")
         if v and re.match(r"^[A-Za-z]:\\|^\\\\", str(v)):
             local_paths.append(f"parameter {e['name']}: {v}")
     if local_paths:
         out.append(_f("warning", "local-file-source", "Data is loaded from local or network file paths.",
-                      local_paths[:10], "Scheduled refresh in the service needs a gateway or a cloud source."))
+                      local_paths[:10], "Scheduled refresh in the service needs a gateway or a cloud source.",
+                      scope=("tables", sorted(local_tables)) if local_tables else None))
     if model["roles"]:
         out.append(_f("info", "row-level-security", f"{len(model['roles'])} security role(s) defined.",
                       [r["name"] for r in model["roles"]]))
@@ -696,9 +821,10 @@ def _findings(model: dict, reports: List[dict], broken: list, unresolved: list) 
             out.append(_f("info", "hidden-pages", f"Report '{rep['name']}' has {len(hidden)} hidden page(s).", hidden))
         if rep.get("customVisuals"):
             out.append(_f("info", "custom-visuals", f"Report '{rep['name']}' uses custom visuals.", rep["customVisuals"],
-                          "Check that these visuals are approved in your tenant."))
+                          "Check that these visuals are approved in your tenant.",
+                          scope=("visualTypes", (rep["name"], rep["customVisuals"]))))
     order = {"error": 0, "warning": 1, "info": 2}
-    return sorted(out, key=lambda f: order.get(f["severity"], 3))
+    return sorted(out, key=lambda f: order.get(f["severity"], 3))  # final order: _attach_impact
 
 
 def _stats(model: dict, reports: List[dict]) -> dict:
@@ -751,3 +877,17 @@ def relationship_path(model: dict, a: str, b: str, include_inactive: bool = Fals
         path.append({"from": p, "to": cur, "relationship": r})
         cur = p
     return list(reversed(path))
+
+
+def finding_impact_text(f: dict) -> str:
+    """One line on which report visuals a finding reaches. Empty for packs written before impact existed."""
+    if "impact" not in f:
+        return ""
+    i = f["impact"]
+    if i is None:
+        return "Not tied to specific report visuals."
+    if not i["visuals"]:
+        return "Reaches no visual in the packaged report(s)."
+    pages = i["pages"]
+    pg = ", ".join(pages[:6]) + (f" and {len(pages) - 6} more" if len(pages) > 6 else "")
+    return f"Affects {i['visuals']} visual(s) on {len(pages)} page(s): {pg}."

@@ -27,7 +27,7 @@ If the user does not say which report they mean and there is more than one pack,
 - **Where does the data for page P come from?** Collect the fields of P's visuals from `visuals.csv`, then the measures and columns they depend on, then each table's source in `tables.csv`, `sources.csv` and the documentation's *Data sources & Power Query*.
 - **What breaks if I change or remove X?** Find X in `depends_on_measures` and `depends_on_columns` of `measures.csv`, in calculated columns, in relationships and in the `fields` of `visuals.csv`. List the measures, visuals and pages. Other reports on the same published model are not in these files; say so.
 - **Why does slicer S not filter visual V?** Check the relationship path and direction from S's table to V's tables, inactive relationships, measures that remove filters, field parameters and calculation groups. Visual interactions are not in the files; say so.
-- **What can be cleaned up, what is wrong?** Use the findings in the agent brief and *Model health* in the documentation. Order: broken visuals, then ambiguity (bi-directional, many-to-many, unused inactive relationships), then maintainability. `used_in_report = False` means unused by the report(s) in this pack only.
+- **What can be cleaned up, what is wrong?** Use the findings in the agent brief and *Model health* in the documentation. They are sorted by priority: high-priority findings reach report visuals, and each says how many and on which pages. Start there, then ambiguity (bi-directional, many-to-many, unused inactive relationships), then maintainability. `used_in_report = False` means unused by the report(s) in this pack only.
 
 ## Rules
 

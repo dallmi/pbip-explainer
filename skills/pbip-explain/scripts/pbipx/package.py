@@ -27,7 +27,7 @@ from xml.sax.saxutils import escape as _xesc
 
 from . import __version__
 from . import portfolio
-from .analysis import ROLE_LABELS
+from .analysis import PRIORITY_RULE, ROLE_LABELS, finding_impact_text
 from .docs import Ctx, PROV_LABEL, impact_lines, impact_summary, _fieldname, _filter_txt, _pages, _split_fields, _src_summary, _tables_sorted, glossary_entries
 
 # ============================================================================ minimal .docx writer
@@ -435,12 +435,20 @@ def doc_model(u: dict, ctx: Ctx, generated: str) -> Docx:
     fs = m["analysis"]["findings"]
     if not fs:
         d.p("No findings.")
+    elif "priority" in fs[0]:
+        d.small(f"Sorted by priority: {PRIORITY_RULE}.")
     for f in fs:
-        d.p([(f"{f['severity'].upper()} · {f['code']}: ", "b"), (f["message"], "")])
+        pr = f"{f['priority'].upper()} PRIORITY · " if f.get("priority") else ""
+        d.p([(f"{pr}{f['severity'].upper()} · {f['code']}: ", "b"), (f["message"], "")])
         if f.get("advice"):
             d.small(f["advice"])
         if f["objects"]:
             d.bullets([str(o) for o in f["objects"][:20]])
+        imp = finding_impact_text(f)
+        if imp:
+            i = f.get("impact") or {}
+            d.small("Impact: " + imp + (" For example: " + "; ".join(i["examples"]) + ". Basis: " + i["basis"] + "."
+                                        if i.get("visuals") else ""))
     un = m["analysis"]["unused"]
     if un["measures"] or un["columns"]:
         d.heading(f"Unused objects ({key})", 2)
@@ -581,8 +589,10 @@ def doc_catalog(units: List[dict], pf: dict, name: str, generated: str, files: D
     for u in units:
         for f in u["model"]["analysis"]["findings"]:
             if f["severity"] in ("error", "warning"):
-                rows.append([u["key"], f["severity"], f["message"]])
-    d.table(["Model", "Severity", "Finding"], rows, [2000, 1000, 6000]) if rows else d.p("No errors or warnings.")
+                imp = finding_impact_text(f)
+                rows.append([u["key"], f"{f['priority']} ({f['severity']})" if f.get("priority") else f["severity"],
+                             f["message"] + (" " + imp if imp else "")])
+    d.table(["Model", "Priority", "Finding"], rows, [2000, 1300, 5700]) if rows else d.p("No errors or warnings.")
     return d
 
 
