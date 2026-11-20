@@ -33,10 +33,15 @@ sys.path.insert(0, str(SCRIPTS))
 
 from pbipx import __version__  # noqa: E402
 from pbipx import docs as _docs  # noqa: E402
+from pbipx import package as _package  # noqa: E402
+from pbipx import portfolio as _portfolio  # noqa: E402
 from pbipx.pack import extract, load_pack  # noqa: E402
 from pbipx.query import Q  # noqa: E402
 
 STATIC = Path(__file__).resolve().parent / "static"
+# The single-file edition (single-file/pbip_explainer.py) sets these instead of shipping folders.
+EMBEDDED_INDEX: "str | None" = None
+DEFAULT_DATA_DIR = ROOT / "work" / "ui-runs"
 MAX_UPLOAD = 1024 ** 3          # 1 GB zip
 RUN_ID = re.compile(r"^[A-Za-z0-9._-]{1,120}$")
 QUERY_COMMANDS = {"summary", "find", "measure", "table", "column", "page", "path", "impact", "unused", "findings"}
@@ -233,7 +238,7 @@ class Handler(BaseHTTPRequestHandler):
             return self._error(HTTPStatus.FORBIDDEN, "Use http://127.0.0.1")
         path = unquote(urlparse(self.path).path)
         if path in ("/", "/index.html"):
-            body = (STATIC / "index.html").read_bytes()
+            body = EMBEDDED_INDEX.encode("utf-8") if EMBEDDED_INDEX else (STATIC / "index.html").read_bytes()
             return self._send(200, body, "text/html; charset=utf-8",
                               {"Content-Security-Policy": "default-src 'self'; style-src 'self' 'unsafe-inline'; "
                                                           "script-src 'self' 'unsafe-inline'; frame-ancestors 'none'"})
@@ -308,7 +313,54 @@ class Handler(BaseHTTPRequestHandler):
         m = re.match(r"^/api/runs/([^/]+)/enrichment$", path)
         if m:
             return self._enrichment(m.group(1))
+        if path in ("/api/portfolio", "/api/package"):
+            return self._portfolio(path.endswith("package"))
         return self._error(404, "Not found")
+
+    def _selected_packs(self, run_ids) -> list:
+        packs = []
+        for rid in run_ids:
+            d = self.runs.dir(str(rid))          # KeyError for unknown ids
+            meta = self.runs.meta(str(rid))
+            if meta.get("status") != "done":
+                continue
+            enr = None
+            if (d / "enrichment.json").is_file():
+                try:
+                    enr = json.loads((d / "enrichment.json").read_text(encoding="utf-8"))
+                except ValueError:
+                    enr = None
+            packs.append({"pack": load_pack(d), "enrichment": enr, "run": rid})
+        return packs
+
+    def _portfolio(self, download: bool):
+        """Preview (cross-model analysis) or build the SharePoint / Agent Builder package for selected runs."""
+        try:
+            req = json.loads(self._body(64 * 1024).decode("utf-8"))
+            run_ids = [str(r) for r in (req.get("runs") or [])][:200]
+            packs = self._selected_packs(run_ids)
+        except KeyError:
+            return self._error(404, "Unknown analysis in selection")
+        except (ValueError, UnicodeDecodeError):
+            return self._error(400, "Bad request")
+        if not packs:
+            return self._error(400, "Select at least one finished analysis.")
+        name = re.sub(r"\s+", " ", str(req.get("name") or "Semantic model catalog")).strip()[:80] or "Semantic model catalog"
+        try:
+            if not download:
+                units = _portfolio.collect_units(packs)
+                if not units:
+                    return self._error(400, "The selection contains no semantic model (live-connection reports only).")
+                return self._json(_portfolio.analyse(units))
+            data, man = _package.build(packs, name, bool(req.get("machineReadable", True)))
+        except ValueError as e:
+            return self._error(400, str(e))
+        except Exception as e:  # noqa: BLE001
+            return self._error(500, f"Building the package failed: {type(e).__name__}: {e}")
+        fname = _package.safe_filename(name) + ".zip"
+        return self._send(200, data, "application/zip",
+                          {"Content-Disposition": f'attachment; filename="{fname}"',
+                           "X-Package-Manifest": json.dumps({k: man[k] for k in ("knowledgeFiles", "models", "warnings")})[:4000]})
 
     def _enrichment(self, run_id: str):
         """Store an uploaded enrichment.json and rebuild the docs with it."""
@@ -420,8 +472,8 @@ def make_server(data_dir: Path, port: int) -> ThreadingHTTPServer:
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description="pbip-explainer local UI")
     ap.add_argument("--port", type=int, default=8765)
-    ap.add_argument("--data-dir", type=Path, default=ROOT / "work" / "ui-runs",
-                    help="where analysed projects are kept (default: work/ui-runs, git-ignored)")
+    ap.add_argument("--data-dir", type=Path, default=DEFAULT_DATA_DIR,
+                    help="where analysed projects are kept")
     ap.add_argument("--no-browser", action="store_true")
     a = ap.parse_args(argv)
     if sys.version_info < (3, 9):

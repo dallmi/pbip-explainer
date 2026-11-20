@@ -142,6 +142,28 @@ input[type=text]{flex:1;min-width:220px}
 .muted{color:var(--muted)}.small{font-size:12.5px}
 .empty{color:var(--muted);font-size:12.5px;padding:8px 6px}
 .hidden{display:none!important}
+/* package view */
+.pkg{overflow:auto}
+.pgrid{display:grid;grid-template-columns:minmax(0,420px) minmax(0,1fr);gap:24px;padding:0 48px 40px;max-width:1180px}
+.box{border:1px solid var(--line);padding:18px 20px;background:var(--white)}
+.box h4{font-size:15px;font-weight:700;color:var(--black);margin-bottom:10px}
+.mlist{list-style:none;border-top:1px solid var(--row);margin-bottom:14px;max-height:340px;overflow:auto}
+.mlist li{display:flex;gap:10px;align-items:flex-start;padding:8px 2px;border-bottom:1px solid var(--row)}
+.mlist input{margin-top:3px;accent-color:var(--red)}
+.mlist .nm{font-weight:600;color:var(--black);font-size:13px}
+.mlist .dt{font-size:11.5px;color:var(--muted)}
+.fld{display:block;font-size:12px;font-weight:700;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;margin:12px 0 4px}
+.fld+input[type=text]{width:100%}
+.chk{display:flex;gap:8px;align-items:center;font-size:13px;margin:10px 0 14px}
+.chk input{accent-color:var(--red)}
+.ov{list-style:none;margin-top:6px}
+.ov li{padding:7px 0;border-bottom:1px solid var(--row);font-size:13px}
+.ov li b{color:var(--black)}
+.ov .md{color:var(--muted);font-size:12px}
+.batch{list-style:none;margin-top:6px}
+.batch li{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid var(--row);font-size:13px}
+.batch .st{color:var(--muted);white-space:nowrap}.batch .st.ok{color:var(--ok)}.batch .st.bad{color:var(--bad)}.batch .st.now{color:var(--red)}
+@media (max-width:1000px){.pgrid{grid-template-columns:1fr;padding:0 16px 32px}}
 @media (max-width:1000px){.flow{grid-template-columns:1fr 1fr;row-gap:12px}.flow .st:nth-child(2)::after{display:none}.cards{grid-template-columns:1fr}}
 .top h1,.top .sub{white-space:nowrap}
 @media (max-width:1100px){.top .sub,.top .sep{display:none}}
@@ -153,6 +175,7 @@ input[type=text]{flex:1;min-width:220px}
 <div class="top">
   <h1>pbip-explainer</h1><span class="sep">|</span><span class="sub">Power BI project analyser</span><span class="ver" id="ver"></span>
   <span class="local">Runs locally · nothing leaves this computer</span>
+  <button class="btn" id="to-pkg">Analysis package</button>
   <button class="btn" id="new">New analysis</button>
 </div>
 <div class="shell">
@@ -180,13 +203,14 @@ input[type=text]{flex:1;min-width:220px}
       <label class="drop" id="drop" tabindex="0">
         <div class="ico"></div>
         <div class="big">Drop a Power BI project (.zip) here</div>
-        <div class="hint">or click to choose a file</div>
-        <input type="file" id="file" accept=".zip,application/zip">
+        <div class="hint">or click to choose files · several zips at once build a catalog of models</div>
+        <input type="file" id="file" accept=".zip,application/zip" multiple>
       </label>
       <div class="prog hidden" id="progress">
         <h3 id="p-name"></h3>
         <div class="bar" id="p-bar"><i></i></div>
         <ul class="steps" id="p-steps"></ul>
+        <ul class="batch hidden" id="p-batch"></ul>
         <div class="callout err hidden" id="p-err"></div>
       </div>
     </div>
@@ -263,6 +287,39 @@ input[type=text]{flex:1;min-width:220px}
       <div id="r-findings"></div>
     </div></div></div>
   </section>
+  <!-- package -->
+  <section class="view pkg" id="v-package">
+    <div class="hero">
+      <div class="kicker">Analysis package · SharePoint + Agent Builder</div>
+      <h2>One package for an agent that knows all your semantic models.</h2>
+      <p class="lead">Pick the analysed models. The package holds Word files per model and a catalog across all of them,
+        including measures with the same name but different logic. Upload it to SharePoint and point an Agent Builder agent at the folder.</p>
+      <div class="flow">
+        <div class="st"><div class="num">01</div><b>Select models</b><span>Every finished analysis can go in</span></div>
+        <div class="st"><div class="num">02</div><b>Review overlaps</b><span>Same measure names, shared tables and sources</span></div>
+        <div class="st"><div class="num">03</div><b>Download package</b><span>Word files, catalog, agent instructions, README</span></div>
+        <div class="st"><div class="num">04</div><b>SharePoint + agent</b><span>Upload the Knowledge folder, paste the instructions, share</span></div>
+      </div>
+    </div>
+    <div class="pgrid">
+      <div class="box">
+        <h4>Models</h4>
+        <ul class="mlist" id="pk-list"></ul>
+        <label class="fld" for="pk-name">Package name</label>
+        <input type="text" id="pk-name" value="Semantic model catalog" autocomplete="off">
+        <label class="chk"><input type="checkbox" id="pk-mr" checked> Include machine-readable files (model.json, CSVs)</label>
+        <button class="btn primary" id="pk-go">Download package (.zip)</button>
+        <p class="small muted" id="pk-msg" style="margin-top:10px"></p>
+      </div>
+      <div>
+        <div class="tiles" id="pk-tiles"></div>
+        <div class="box" style="margin-bottom:16px"><h4>Same name, different logic</h4><ul class="ov" id="pk-conf"></ul></div>
+        <div class="box" style="margin-bottom:16px"><h4>Tables and sources in several models</h4><ul class="ov" id="pk-shared"></ul></div>
+        <div class="callout"><span class="kicker">Next</span>Upload everything in <b>Knowledge/</b> to a SharePoint folder. In Microsoft 365 Copilot choose
+          Create agent, paste <b>Agent-Instructions.txt</b>, add the folder under Knowledge and share the agent. Step-by-step in <b>README.txt</b>.</div>
+      </div>
+    </div>
+  </section>
 </main>
 </div>
 <script>
@@ -277,27 +334,56 @@ function el(tag, attrs, ...kids){ const e=document.createElement(tag);
 async function getJSON(url){ const r=await fetch(url,{cache:'no-store'}); if(!r.ok){ let m=r.status; try{m=(await r.json()).error;}catch(_){} throw new Error(m);} return r.json(); }
 const enc = encodeURIComponent;
 
-function show(view){ ['v-home','v-report'].forEach(v=>$(v).classList.toggle('on',v===view)); }
+function show(view){ ['v-home','v-report','v-package'].forEach(v=>$(v).classList.toggle('on',v===view)); }
 function tab(name){ document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.dataset.pane===name));
   document.querySelectorAll('.pane').forEach(p=>p.classList.toggle('on',p.id==='pane-'+name)); }
 document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{ tab(t.dataset.pane); if(t.dataset.pane==='ask') $('q-a').focus(); }));
 $('new').addEventListener('click',()=>{ current=null; markSelected(null); $('progress').classList.add('hidden'); show('v-home'); });
+$('to-pkg').addEventListener('click',()=>openPackage());
 
 // ---------------------------------------------------------------- upload
 const drop=$('drop'), file=$('file');
 ['dragenter','dragover'].forEach(t=>drop.addEventListener(t,e=>{e.preventDefault(); drop.classList.add('over');}));
 ['dragleave','drop'].forEach(t=>drop.addEventListener(t,e=>{e.preventDefault(); drop.classList.remove('over');}));
-drop.addEventListener('drop',e=>{ const f=e.dataTransfer.files[0]; if(f) upload(f); });
+drop.addEventListener('drop',e=>{ handle(e.dataTransfer.files); });
 drop.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); file.click(); }});
-file.addEventListener('change',()=>{ if(file.files[0]) upload(file.files[0]); file.value=''; });
+file.addEventListener('change',()=>{ handle(file.files); file.value=''; });
 // a zip dropped anywhere on the window counts too
 document.addEventListener('dragover',e=>e.preventDefault());
-document.addEventListener('drop',e=>{ e.preventDefault(); const f=e.dataTransfer&&e.dataTransfer.files[0]; if(f&&e.target!==drop&&!drop.contains(e.target)) upload(f); });
+document.addEventListener('drop',e=>{ e.preventDefault(); if(e.dataTransfer&&e.dataTransfer.files.length&&e.target!==drop&&!drop.contains(e.target)) handle(e.dataTransfer.files); });
+function handle(list){ const fs=[...(list||[])]; if(!fs.length) return; if(fs.length===1) upload(fs[0]); else uploadMany(fs); }
 
 function showProgress(name){
   show('v-home'); $('progress').classList.remove('hidden');
   $('p-name').textContent=name; $('p-err').classList.add('hidden'); $('p-steps').innerHTML='';
   $('p-bar').classList.remove('indet'); $('p-bar').firstElementChild.style.width='0';
+  $('p-batch').classList.add('hidden'); $('p-batch').innerHTML=''; $('p-steps').classList.remove('hidden');
+}
+function sendZip(f,onprog){ return new Promise((res,rej)=>{ const x=new XMLHttpRequest(); x.open('POST','/api/analyse');
+  x.setRequestHeader('X-PBIPX','1'); x.setRequestHeader('X-Filename',enc(f.name));
+  x.upload.onprogress=e=>{ if(e.lengthComputable&&onprog) onprog(e.loaded/e.total); };
+  x.onload=()=>{ let r={}; try{r=JSON.parse(x.responseText);}catch(_){} if(x.status===202) res(r.id); else rej(new Error(r.error||('Upload failed ('+x.status+')'))); };
+  x.onerror=()=>rej(new Error('Upload failed. Is the pbip-explainer window still open?')); x.send(f); }); }
+async function waitDone(id){ for(;;){ let m; try{ m=await getJSON('/api/runs/'+enc(id)); }catch(e){ m=null; }
+  if(m&&(m.status==='done'||m.status==='error')) return m; await new Promise(r=>setTimeout(r,600)); } }
+async function uploadMany(fs){
+  showProgress(fs.length+' Power BI projects'); clearInterval(poll); current=null;
+  $('p-steps').classList.add('hidden'); const ul=$('p-batch'); ul.classList.remove('hidden');
+  const rows=fs.map(f=>{ const st=el('span',{class:'st',text:'waiting'}); ul.append(el('li',{},el('span',{text:f.name}),st)); return st; });
+  const ids=[]; let n=0;
+  for(let i=0;i<fs.length;i++){ const f=fs[i], st=rows[i];
+    if(!/\.zip$/i.test(f.name)){ st.textContent='not a .zip'; st.className='st bad'; continue; }
+    try{ st.textContent='uploading'; st.className='st now';
+      const id=await sendZip(f,p=>{ st.textContent='uploading '+Math.round(p*100)+'%'; });
+      st.textContent='analysing'; refreshRuns();
+      const m=await waitDone(id);
+      if(m.status==='done'){ st.textContent='done · '+(m.title||''); st.className='st ok'; ids.push(id); }
+      else { st.textContent='failed: '+(m.error||'').slice(0,80); st.className='st bad'; }
+    }catch(e){ st.textContent=e.message; st.className='st bad'; }
+    n++; $('p-bar').firstElementChild.style.width=(100*n/fs.length)+'%';
+  }
+  refreshRuns();
+  if(ids.length>1) openPackage(ids); else if(ids.length===1) openRun(ids[0]);
 }
 function showError(msg){ $('p-bar').classList.remove('indet'); const e=$('p-err'); e.innerHTML=''; e.append(el('span',{class:'kicker',text:'Could not analyse'}),document.createTextNode(msg)); e.classList.remove('hidden');
   [...$('p-steps').children].forEach(li=>li.classList.remove('now')); }
@@ -395,6 +481,60 @@ async function ask(){
 }
 
 $('q-copy').addEventListener('click',async()=>{ try{ await navigator.clipboard.writeText($('q-out').textContent); $('q-copy').textContent='Copied'; }catch(e){ const r=document.createRange(); r.selectNodeContents($('q-out')); const sel=getSelection(); sel.removeAllRanges(); sel.addRange(r); $('q-copy').textContent='Selected'; } setTimeout(()=>$('q-copy').textContent='Copy',1400); });
+
+// ---------------------------------------------------------------- analysis package
+let pkTimer=null;
+async function openPackage(pre){
+  current=null; markSelected(null); show('v-package');
+  let list=[]; try{ list=(await getJSON('/api/runs')).filter(r=>r.status==='done'); }catch(e){}
+  const ul=$('pk-list'); ul.innerHTML='';
+  if(!list.length){ ul.append(el('li',{class:'empty',text:'No finished analyses yet. Drop one or more zips first.'})); renderPreview(null); return; }
+  const newest={}; list.forEach(r=>{ const t=r.title||r.name; if(!newest[t]||(r.created||'')>(newest[t].created||'')) newest[t]=r; });
+  list.forEach(r=>{ const t=r.title||r.name, isNew=newest[t]===r;
+    const cb=el('input',{type:'checkbox',value:r.id}); cb.checked=pre?pre.includes(r.id):isNew;
+    cb.addEventListener('change',schedulePreview);
+    ul.append(el('li',{},cb,el('div',{},el('div',{class:'nm',text:t}),
+      el('div',{class:'dt',text:(r.created||'').replace('T',' ').slice(0,16)+(isNew?'':' · older analysis of the same model')})))); });
+  schedulePreview();
+}
+function selectedRuns(){ return [...$('pk-list').querySelectorAll('input:checked')].map(i=>i.value); }
+function schedulePreview(){ clearTimeout(pkTimer); pkTimer=setTimeout(preview,250); }
+async function preview(){
+  const runs=selectedRuns(); $('pk-go').disabled=!runs.length;
+  if(!runs.length){ renderPreview(null); return; }
+  try{ const r=await fetch('/api/portfolio',{method:'POST',headers:{...H,'Content-Type':'application/json'},body:JSON.stringify({runs})});
+    const j=await r.json(); if(!r.ok) throw new Error(j.error||r.status); renderPreview(j); $('pk-msg').textContent='';
+  }catch(e){ renderPreview(null); $('pk-msg').textContent=e.message; }
+}
+function renderPreview(pf){
+  const t=$('pk-tiles'); t.innerHTML=''; const c=$('pk-conf'); c.innerHTML=''; const sh=$('pk-shared'); sh.innerHTML='';
+  if(!pf){ c.append(el('li',{class:'md',text:'Select models to see the overlaps.'})); return; }
+  const tot=pf.totals;
+  [[tot.models,'models'],[tot.reports,'reports'],[tot.measures,'measures'],[pf.measureConflicts.length,'same name, other logic'],
+   [pf.sharedTables.length,'shared tables'],[pf.sharedSources.length,'shared sources'],[3*tot.models+1,'knowledge files']]
+    .forEach(([v,l])=>t.append(el('div',{class:'tile'},el('div',{class:'v',text:String(v)}),el('div',{class:'l',text:l}))));
+  if(!pf.measureConflicts.length) c.append(el('li',{class:'md',text:tot.models>1?'No measure name is calculated differently in two models.':'Select two or more models to compare them.'}));
+  pf.measureConflicts.slice(0,40).forEach(x=>c.append(el('li',{},el('b',{text:'['+x.name+']'}),
+    el('div',{class:'md',text:x.variants.map(v=>v.models.join(', ')+': '+(v.expression||'').replace(/\s+/g,' ').slice(0,110)).join('  |  ')}))));
+  pf.sharedTables.slice(0,30).forEach(x=>sh.append(el('li',{},el('b',{text:'Table '+x.name}),
+    el('div',{class:'md',text:x.models.join(', ')+(x.sameColumns?' · same columns':' · columns differ')}))));
+  pf.sharedSources.slice(0,30).forEach(x=>sh.append(el('li',{},el('b',{text:x.label}),
+    el('div',{class:'md',text:x.uses.map(u=>u.model+': '+u.table).join('; ')}))));
+  if(!pf.sharedTables.length&&!pf.sharedSources.length) sh.append(el('li',{class:'md',text:'Nothing shared between the selected models.'}));
+  if(3*tot.models+1>100) $('pk-msg').textContent='More than 100 knowledge files: Agent Builder takes at most 100 SharePoint files per agent. Split into several packages.';
+}
+$('pk-go').addEventListener('click',async()=>{
+  const runs=selectedRuns(); if(!runs.length) return; const btn=$('pk-go'), msg=$('pk-msg');
+  btn.disabled=true; msg.textContent='Building the package …';
+  try{ const r=await fetch('/api/package',{method:'POST',headers:{...H,'Content-Type':'application/json'},
+      body:JSON.stringify({runs,name:$('pk-name').value,machineReadable:$('pk-mr').checked})});
+    if(!r.ok){ let m=r.status; try{m=(await r.json()).error;}catch(_){} throw new Error(m); }
+    const blob=await r.blob(); const cd=r.headers.get('Content-Disposition')||''; const fn=(cd.match(/filename="([^"]+)"/)||[])[1]||'package.zip';
+    const a=el('a',{href:URL.createObjectURL(blob),download:fn}); document.body.append(a); a.click(); a.remove();
+    let man={}; try{ man=JSON.parse(r.headers.get('X-Package-Manifest')||'{}'); }catch(_){}
+    msg.textContent='Downloaded '+fn+(man.knowledgeFiles?' · '+man.knowledgeFiles+' knowledge files':'')+'. Open README.txt inside for the SharePoint and Agent Builder steps.';
+  }catch(e){ msg.textContent='Failed: '+e.message; } finally{ btn.disabled=false; }
+});
 
 // ---------------------------------------------------------------- runs list
 async function refreshRuns(sel){

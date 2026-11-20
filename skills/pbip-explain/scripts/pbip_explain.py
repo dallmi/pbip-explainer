@@ -7,6 +7,9 @@
   query   <dir> <command> [args]             look things up:
           summary | find <text> | measure <name> | table <name> | column <T[C]> | page <name>
           path <tableA> <tableB> | impact <measure|T[C]|table> | unused | findings
+  package <dir> [<dir> ...] --out pkg.zip [--name "..."]
+                                             analysis package for SharePoint + Agent Builder over several
+                                             analysed models (each <dir> = a run/extract output folder)
 
 Stdlib only, Python 3.9+.
 """
@@ -44,6 +47,11 @@ def main(argv=None) -> int:
     p = sub.add_parser("docs")
     p.add_argument("dir", type=Path)
     p.add_argument("--enrichment", type=Path)
+    p = sub.add_parser("package")
+    p.add_argument("dirs", type=Path, nargs="+")
+    p.add_argument("--out", type=Path, required=True)
+    p.add_argument("--name", default="Semantic model catalog")
+    p.add_argument("--no-machine-readable", action="store_true")
     p = sub.add_parser("query")
     p.add_argument("dir", type=Path)
     p.add_argument("command")
@@ -71,6 +79,25 @@ def main(argv=None) -> int:
     if a.cmd == "docs":
         for f in _docs_for(a.dir, a.enrichment):
             print(f"docs: {f}")
+        return 0
+    if a.cmd == "package":
+        from pbipx import package as _package
+        packs = []
+        for d in a.dirs:
+            enr = None
+            if (d / "enrichment.json").is_file():
+                try:
+                    enr = json.loads((d / "enrichment.json").read_text(encoding="utf-8"))
+                except ValueError:
+                    enr = None
+            packs.append({"pack": load_pack(d), "enrichment": enr, "run": d.name})
+        data, man = _package.build(packs, a.name, not a.no_machine_readable)
+        a.out.write_bytes(data)
+        print(f"package: {a.out} ({len(data) // 1024} KB, {man['knowledgeFiles']} knowledge files for {len(man['models'])} model(s))")
+        for k, v in man["portfolio"].items():
+            print(f"  {k}: {v}")
+        for w in man["warnings"]:
+            print("WARNING:", w)
         return 0
     q = Q(load_pack(a.dir))
     cmd, args = a.command, a.args

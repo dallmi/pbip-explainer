@@ -80,6 +80,16 @@ Point the user to:
 
 Report in a few lines: what the report does (if enrichment was done), size, the top findings, open questions. Do not paste the docs into chat.
 
+## Several models: analysis package for SharePoint + Agent Builder
+
+When the user wants one agent for many semantic models, extract each project (step 1), enrich if time allows, then:
+
+```bash
+python3 -I "$S" package work/<a> work/<b> ... --out <name>.zip --name "<catalog name>"
+```
+
+It writes Word files per model plus `00 Catalog.docx` with cross-model answers (same measure name with different DAX, shared tables and sources, different join keys), `Agent-Instructions.txt` and `README.txt` with the SharePoint and Agent Builder steps. Point out the measure conflicts to the user: they are usually the most valuable finding.
+
 ## Limits
 
 See `references/limitations.md`. In short: no data, no visual-level formatting semantics, DAX is analysed by references not executed, table roles (fact/dimension) are heuristics, M analysis covers common connectors.

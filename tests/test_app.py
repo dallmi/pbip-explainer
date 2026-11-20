@@ -100,6 +100,25 @@ class AppTests(unittest.TestCase):
         self.assertEqual(self.req("POST", f"/api/runs/{run_id}/delete", b"", {"X-PBIPX": "1"})[0], 200)
         self.assertEqual(self.req("GET", f"/api/runs/{run_id}")[0], 404)
 
+    def test_package_endpoints(self):
+        a = self.upload(zip_example(), "First.zip")
+        b = self.upload(zip_example(), "Second.zip")
+        hdr = {"X-PBIPX": "1", "Content-Type": "application/json"}
+        st, _, body = self.req("POST", "/api/portfolio", json.dumps({"runs": [a, b]}), hdr)
+        self.assertEqual(st, 200, body)
+        pf = json.loads(body)
+        self.assertEqual(pf["totals"]["models"], 2)
+        self.assertTrue(pf["sharedMeasures"])                    # same model twice: every measure identical
+        st, h, data = self.req("POST", "/api/package", json.dumps({"runs": [a, b], "name": "Team models"}), hdr)
+        self.assertEqual(st, 200)
+        self.assertIn('filename="Team models.zip"', h.get("Content-Disposition", ""))
+        names = zipfile.ZipFile(io.BytesIO(data)).namelist()
+        self.assertIn("Team models/Knowledge/00 Catalog.docx", names)
+        self.assertEqual(json.loads(h["X-Package-Manifest"])["knowledgeFiles"], 7)
+        self.assertEqual(self.req("POST", "/api/package", json.dumps({"runs": []}), hdr)[0], 400)
+        self.assertEqual(self.req("POST", "/api/package", json.dumps({"runs": ["../x"]}), hdr)[0], 404)
+        self.assertEqual(self.req("POST", "/api/package", json.dumps({"runs": [a]}))[0], 403)   # no custom header
+
     def test_not_a_pbip(self):
         buf = io.BytesIO()
         with zipfile.ZipFile(buf, "w") as zf:
